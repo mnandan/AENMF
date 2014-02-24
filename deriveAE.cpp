@@ -12,8 +12,145 @@
 #include "deriveAE.h"
 
 using namespace std;
-// refer LIBSVM for details. http://www.csie.ntu.edu.tw/~cjlin/libsvm/
-// return 1 if already optimal, return 0 otherwise
+
+//void DeriveAE::deriveAE(UINT rpSize, double *lambda, const DataVect * XC, int sI) {
+//	this->rpSize = rpSize;
+//	this->lambda = lambda;
+//	double gradient = 0;
+//	// initialize
+//	double G, Gmax, Gmin;
+//	double GmaxOld = INF, GminOld = -INF;
+//	int activeSize = rpSize;
+//	for (UINT i = 0; i < rpSize; i++)
+//		lambda[i] = 0;
+//
+//	for(UINT i = 0; i <= D; i++)
+//		w[i] = 0;
+//	// optimization step
+//	int iter = 0;
+//	while (iter++ < 100) {
+//		for (UINT i = 0; i < activeSize; i++) {
+//			UINT j = i + rand() % (activeSize - i);
+//			swap(index[i], index[j]);
+//		}
+//		Gmax = -INF;
+//		Gmin = INF;
+//		for (UINT s = 0; s < activeSize; s++) {
+//			UINT vI = index[s]; //relative vector index
+//			UINT aI = vI + sI; //actual vector index
+//			gradient = -xTz[vI];
+//			FeatType * F = XC[aI].F;
+//			G = 0;
+//			for (UINT fI = 0; fI < XC[aI].numFeats; fI++) //feature index
+//				gradient += w[F[fI].fNum] * F[fI].fVal;
+//
+//			if (lambda[vI] == 0) {
+//				if (gradient > GmaxOld) {
+//					activeSize--;
+//					swap(index[s], index[activeSize]);
+//					s--;
+//					continue;
+//				} else if (gradient < 0)
+//					G = gradient;
+//			} else
+//				G = gradient;
+//
+//			if (fabs(G) > TAU) {
+//				double lambdaNew = max(lambda[vI] - G / rpCache[vI][vI], 0.0); //constraint
+//				double delta = lambdaNew - lambda[vI];
+//				lambda[vI] = lambdaNew;
+//				for (UINT fI = 0; fI < XC[aI].numFeats; fI++) //feature index
+//					w[F[fI].fNum] += delta * F[fI].fVal;
+//			}
+//			Gmax = max(Gmax, G);
+//			Gmin = min(Gmin, G);
+//		}
+//		if (Gmax - Gmin <= 0.1) {
+//			if (activeSize == rpSize)
+//				break;
+//			else {
+//				activeSize = rpSize;
+//				//cout << "*";
+//				GmaxOld = INF;
+//				GminOld = -INF;
+//				continue;
+//			}
+//		}
+//		GmaxOld = Gmax;
+//		GminOld = Gmin;
+//		if (GmaxOld <= 0)
+//			GmaxOld = INF;
+//		if (GminOld >= 0)
+//			GminOld = -INF;
+//	}
+//}
+
+void DeriveAE::deriveAE(UINT rpSize, double *lambda) {
+	this->rpSize = rpSize;
+	this->lambda = lambda;
+	// initialize
+	double PG, Gmax, Gmin;
+	double GmaxOld = INF, GminOld = -INF;
+	int activeSize = rpSize;
+	for (UINT i = 0; i < rpSize; i++) {
+		lambda[i] = 0;
+		G[i] = -xTz[i];
+	}
+
+	// optimization step
+	int iter = 0;
+	while (iter++ < 1000) {
+		for (UINT i = 0; i < activeSize; i++) {
+			UINT j = i + rand() % (activeSize - i);
+			swap(index[i], index[j]);
+		}
+		Gmax = -INF;
+		Gmin = INF;
+		for (UINT s = 0; s < activeSize; s++) {
+			UINT vI = index[s]; //relative vector index
+			PG = 0;
+			if (lambda[vI] == 0) {
+				if (G[vI] > GmaxOld) {
+					activeSize--;
+					swap(index[s], index[activeSize]);
+					s--;
+					continue;
+				} else if (G[vI] < 0)
+					PG = G[vI];
+			} else
+				PG = G[vI];
+
+			if (fabs(PG) > TAU) {
+				double lambdaNew = max(lambda[vI] - PG / rpCache[vI][vI], 0.0); //constraint
+				double delta = lambdaNew - lambda[vI];
+				lambda[vI] = lambdaNew;
+				for (UINT k = 0; k < rpSize; k++)
+					G[k] += rpCache[min(vI, (UINT) k)][max(vI, (UINT) k)] * delta;
+
+			}
+			Gmax = max(Gmax, PG);
+			Gmin = min(Gmin, PG);
+		}
+		if (Gmax - Gmin <= 0.1) {
+			if (activeSize == rpSize)
+				break;
+			else {
+				activeSize = rpSize;
+				//cout << "*";
+				GmaxOld = INF;
+				GminOld = -INF;
+				continue;
+			}
+		}
+		GmaxOld = Gmax;
+		GminOld = Gmin;
+		if (GmaxOld <= 0)
+			GmaxOld = INF;
+		if (GminOld >= 0)
+			GminOld = -INF;
+	}
+}
+
 int DeriveAE::select_working_set(int &out_i, int &out_j) {
 	double Gmax = -INF;
 	double Gmax2 = -INF;
@@ -22,15 +159,16 @@ int DeriveAE::select_working_set(int &out_i, int &out_j) {
 	double obj_diff_min = INF;
 
 	for (UINT t = 0; t < rpSize; t++)
-		if (-G[t] >= Gmax) {
-			Gmax = -G[t];
-			Gmax_idx = t;
-		}
+		if (!is_upper_bound(t))
+			if (-G[t] >= Gmax) {
+				Gmax = -G[t];
+				Gmax_idx = t;
+			}
 
 	int i = Gmax_idx;
 
 	for (UINT j = 0; j < rpSize; j++) {
-		if (lambda_status[j]) {
+		if (!is_lower_bound(j)) {
 			double grad_diff = Gmax + G[j];
 			if (G[j] >= Gmax2)
 				Gmax2 = G[j];
@@ -55,15 +193,15 @@ int DeriveAE::select_working_set(int &out_i, int &out_j) {
 	return 0;
 }
 
-void DeriveAE::deriveAE(UINT rpSize, double *lambda) {
+void DeriveAE::deriveAE2(UINT rpSize, double *lambda) {
 	this->rpSize = rpSize;
+	// initialize lambdaStat
 	this->lambda = lambda;
-	// initialize lambda_status
 	{
-		double lambdaInitVal = (double) 1.0 / rpSize; //should sum to 1
+		double alphaInitVal = (double) 1.0 / rpSize; //should sum to 1
 		for (UINT i = 0; i < rpSize; i++) {
-			lambda[i] = lambdaInitVal;
-			update_lambda_status(i);
+			lambda[i] = alphaInitVal;
+			update_lambdaStat(i);
 		}
 	}
 
@@ -73,7 +211,7 @@ void DeriveAE::deriveAE(UINT rpSize, double *lambda) {
 			G[i] = -xTz[i];
 		}
 		for (UINT i = 0; i < rpSize; i++) {
-			if (lambda_status[i]) {
+			if (!is_lower_bound(i)) {
 				for (UINT j = 0; j < rpSize; j++)
 					G[j] += lambda[i] * rpCache[min(i, j)][max(i, j)];
 			}
@@ -87,8 +225,8 @@ void DeriveAE::deriveAE(UINT rpSize, double *lambda) {
 			break;
 		++iter;
 		// update lambda[i] and lambda[j], handle bounds carefully
-		double old_lambda_i = lambda[i];
-		double old_lambda_j = lambda[j];
+		double old_alpha_i = lambda[i];
+		double old_alpha_j = lambda[j];
 		double quad_coef = rpCache[i][i] + rpCache[j][j] - 2 * rpCache[min(i, j)][max(i, j)];
 		if (quad_coef <= 0)
 			quad_coef = TAU;
@@ -96,30 +234,42 @@ void DeriveAE::deriveAE(UINT rpSize, double *lambda) {
 		double sum = lambda[i] + lambda[j];
 		lambda[i] -= delta;
 		lambda[j] += delta;
+		if (sum > LAMBDA_MAX) {
+			if (lambda[i] > LAMBDA_MAX) {
+				lambda[i] = LAMBDA_MAX;
+				lambda[j] = sum - LAMBDA_MAX;
+			}
+		} else {
 			if (lambda[j] < LAMBDA_MIN) {
 				lambda[j] = LAMBDA_MIN;
 				lambda[i] = sum - LAMBDA_MIN;
 			}
-
+		}
+		if (sum > LAMBDA_MAX) {
+			if (lambda[j] > LAMBDA_MAX) {
+				lambda[j] = LAMBDA_MAX;
+				lambda[i] = sum - LAMBDA_MAX;
+			}
+		} else {
 			if (lambda[i] < LAMBDA_MIN) {
 				lambda[i] = LAMBDA_MIN;
 				lambda[j] = sum - LAMBDA_MIN;
 			}
-	
+		}
 		// update G
-		double delta_lambda_i = lambda[i] - old_lambda_i;
-		double delta_lambda_j = lambda[j] - old_lambda_j;
+		double delta_alpha_i = lambda[i] - old_alpha_i;
+		double delta_alpha_j = lambda[j] - old_alpha_j;
 		for (UINT k = 0; k < rpSize; k++)
-			G[k] += (rpCache[min(i, (int) k)][max(i, (int) k)] * delta_lambda_i
-					+ rpCache[min(j, (int) k)][max(j, (int) k)] * delta_lambda_j);
-		update_lambda_status(i);
-		update_lambda_status(j);
+			G[k] += (rpCache[min(i, (int) k)][max(i, (int) k)] * delta_alpha_i
+					+ rpCache[min(j, (int) k)][max(j, (int) k)] * delta_alpha_j);
+		update_lambdaStat(i);
+		update_lambdaStat(j);
 	}
 
 }
 
 double DeriveAE::getRepErr(UINT rpSize, double xNorm, double *lambda) {
-	deriveAE(rpSize, lambda);
+	deriveAE2(rpSize, lambda);
 	double v1 = 0, v2 = 0, err;
 	for (UINT i = 0; i < rpSize; i++) {
 		if(lambda[i] != 0) {

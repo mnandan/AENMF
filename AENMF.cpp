@@ -36,22 +36,39 @@ int main(int argc, char *argv[]) {
 	strcpy(hFname, argv[6]);
 
 // initialize data structures
-	TrainDat trDat(D, N, wFname, hFname);
-	fHand_T inpF(D, N, inpFname, &trDat);
-	GetFact fact(&trDat, R);
+	clock_t begin;
 	vector < vector< double> > H;	//factor H, W is stored in X of trDat
 	for(UINT i = 0; i < N; i++)
 		H.push_back(vector <double> ());	//push empty vector
-
+	TrainDat trDat(D, N, wFname, hFname);
+	fHand_T inpF(D, N, inpFname, &trDat);
 // read input data
-	clock_t begin = clock();
+	begin = clock();
 	if(inpF.readFile())
 		cout<< "Input file read successfully\n";
 	else
 		cout<< "Input file has only "<< inpF.getLineNum()<<" lines. Expected "<< N <<" lines\n";
 
-// Compute W a DxR matrix and H a RxN matrix
+#if 0
+	{
+		UINT R1 = 100*R;
+		GetFact fact1(&trDat, R1);
+	// Compute V a Dx100R matrix
+		fact1.getV(R1,0,N);
+		cout<< "Computed V successfully\n";
+	// Compute W a DxR matrix from V
+		fact1.getV(R,0,R1);
+		cout<< "Computed W successfully\n";
+	}
+	GetFact fact2(&trDat, R);
+// Compute H a RxN matrix using W
+	fact2.getH(R,0,N,H);
+	cout<< "Computed H successfully\n";
+#else
+	GetFact fact(&trDat, R);
+// Compute V a Dx100R matrix
 	fact.getFactors(R,0,N,H);
+#endif
 // Compute time taken and write output files
 	double cpuTimeTaken = difftime(clock(), begin) / CLOCKS_PER_SEC;
 	cout << "CPU time taken = " << cpuTimeTaken <<endl;

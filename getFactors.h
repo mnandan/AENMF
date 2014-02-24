@@ -61,6 +61,8 @@ public:
 	}
 
 	double getFactors(UINT numRp, UINT startInd, UINT endInd, vector < vector< double> > &H);
+	double getV(UINT numRp, UINT startInd, UINT endInd);
+	double getH(UINT numRp, UINT startInd, UINT endInd, vector < vector< double> > &H);
 };
 
 
