@@ -13,19 +13,20 @@
 
 class GetFact: public DeriveAE{
 	const DataVect* X;
+	TrainDat *trDat;
+	UINT totVects,numRp,D;
+	double * lbdArr;
+
 	DataVect* X2;
 	DistDat *distVals;
-	TrainDat *trDat;
 	UINT * clustEndInd;
-	double ** lbdArr;
-	UINT totVects;
 
 	void segregateDataFLS2(UINT startIndex, UINT endIndex, UINT subSize);
     void segregateDataSLS(UINT startIndex, UINT endIndex, UINT V_VAL);
 	double onePassDRSsub(UINT numRp, UINT startInd, UINT endInd);
 	DistDat quickSelectDist(UINT n, UINT k);
 
-	double getDotProduct(UINT i, UINT j) {
+	double getDotProductX(UINT i, UINT j) {
 		double dotProduct = 0;
 		UINT fn1 = 0, fn2 = 0;
 		while (fn1 < X[i].numFeats && fn2 < X[j].numFeats) {
@@ -43,26 +44,81 @@ class GetFact: public DeriveAE{
 		return dotProduct;
 	}
 
-	void updateCache(UINT startInd, UINT indAdd) {
+	double getDotProductXW(UINT i, UINT j) {
+		double dotProduct = 0;
+		FeatType *F = X[i].F;
+		for(UINT ind = 0; ind < X[i].numFeats; ind++) {
+			auto t = trDat->W[j].find(F[ind].fNum);
+			if ( t != trDat->W[j].end() )
+				dotProduct += t->second *F[ind].fVal;
+		}
+		return dotProduct;
+	}
+
+	double getDotProductW(UINT i, UINT j) {
+		double dotProduct = 0;
+		if(trDat->W[i].size() <= trDat->W[j].size()) {
+			auto t = trDat->W[i].begin(), e = trDat->W[i].end();
+			for(; t!= e; t++) {
+				auto wj = trDat->W[j].find(t->first);
+				if ( wj != trDat->W[j].end() )
+					dotProduct += wj->second * t->second;
+			}
+		}
+		else {
+			auto t = trDat->W[j].begin(), e = trDat->W[j].end();
+			for(; t!= e; t++) {
+				auto wi = trDat->W[i].find(t->first);
+				if ( wi != trDat->W[i].end() )
+					dotProduct += wi->second * t->second;
+			}
+		}
+		return dotProduct;
+	}
+
+	void updateCacheW(UINT startInd, UINT indAdd) {
+		rpCache[indAdd][indAdd] = getDotProductW(indAdd + startInd, indAdd + startInd);
+		for (UINT ind = indAdd; ind > 0; ind--)
+			rpCache[ind - 1][indAdd] = getDotProductW(indAdd + startInd, ind - 1 + startInd);
+	}
+
+	void updateCacheX(UINT startInd, UINT indAdd) {
 		rpCache[indAdd][indAdd] = X[startInd + indAdd].nrm;
 		for (UINT ind = indAdd; ind > 0; ind--)
-			rpCache[ind - 1][indAdd] = getDotProduct(indAdd + startInd, ind - 1 + startInd);
+			rpCache[ind - 1][indAdd] = getDotProductX(indAdd + startInd, ind - 1 + startInd);
 	}
 
 public:
-	GetFact(TrainDat *trDat, UINT numRp): DeriveAE(numRp) {
+
+	//double getFactors(UINT numRp, UINT startInd, UINT endInd, vector < vector< double> > &H);
+	GetFact(TrainDat *trDat): DeriveAE(trDat->getR()) {
+		this->trDat = trDat;
+		X = trDat->XC;
+		totVects = trDat->getN();
+		numRp = trDat->getR();
+		D = trDat->getD();
 		X2 = NULL;
 		distVals = NULL;
 		clustEndInd = NULL;
-		lbdArr = NULL;
-		this->trDat = trDat;
-		X = trDat->XC;
-		this->totVects = trDat->totNumVects;
+
+		rpCache = new double*[numRp]; // size RxR
+		for (UINT ind = 0; ind < numRp; ind++)
+			rpCache[ind] = new double[numRp];
+		xTz = new double[numRp];
+		lbdArr = new double[numRp];
 	}
 
-	double getFactors(UINT numRp, UINT startInd, UINT endInd, vector < vector< double> > &H);
-	double getV(UINT numRp, UINT startInd, UINT endInd);
-	double getH(UINT numRp, UINT startInd, UINT endInd, vector < vector< double> > &H);
+	~GetFact() {
+		for (UINT ind = 0; ind < numRp; ind++)
+			delete[] rpCache[ind];
+		delete[] rpCache;
+		delete[] lbdArr;
+		delete[] xTz;
+	}
+
+	void getWinit();
+	void getH();
+	void getW() { }
 };
 
 

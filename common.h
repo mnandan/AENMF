@@ -15,6 +15,8 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
+#include <unordered_map>
+#include <algorithm>
 
 using namespace std;
 
@@ -35,7 +37,7 @@ struct FeatType {
 
 struct DataVect {
 	UINT numFeats;
-	int index; // index of vector in input file
+	UINT index; // index of vector in input file
 	double nrm; // norm of vector
 	FeatType * F; // features
 };
@@ -43,32 +45,40 @@ struct DataVect {
 class TrainDat {
 	DataVect * X;
 	UINT D; // largest index of features among all vectors
-	ofstream wOUT;
-	ofstream hOUT;
+	UINT R;
+	ofstream hOUT, wOUT;
 	char aeFile[1024];
 	UINT vectNum;
-
+	UINT totNumVects;
 public:
 	const DataVect * XC;
-	UINT totNumVects;
-
-	TrainDat(UINT D, UINT totNumVects, char * wFname, char *hFname) {
+    vector <unordered_map < UINT, double> > W;	//key = fNum, val = fVal
+	vector < vector< double> > H;	//factor H
+	TrainDat(UINT D, UINT N, UINT R, char *hFname, char *wFname) {
 		this->D = D;
-		this->totNumVects = totNumVects;
+		totNumVects = N;
+		this->R = R;
 		X = new DataVect[totNumVects];
 		for (UINT ind = 0; ind < totNumVects; ind++) {
 			X[ind].F = NULL;
 			X[ind].numFeats = 0;
+			H.push_back(vector <double> ());	//push empty vector
 		}
 		XC = X;
 		vectNum = 0;
-		wOUT.open(wFname);
+
+		for (UINT ind = 0; ind < R; ind++) {
+			unordered_map < UINT, double> temp;
+			W.push_back(temp);
+		}
+
 		hOUT.open(hFname);
+		wOUT.open(wFname);
 	}
 
 	~TrainDat() {
-		wOUT.close();
 		hOUT.close();
+		wOUT.close();
 		for (UINT ind = 0; ind < totNumVects; ind++)
 			if (X[ind].F != NULL)
 				delete[] X[ind].F;
@@ -90,6 +100,19 @@ public:
 		vectNum++;
 	}
 
+	void copyXW() {	//initialize W matrix with the first numRp vector in X
+		for(UINT i = 0; i<R; i++)
+			for(UINT j = 0; j < X[i].numFeats; j++)
+				W[i][X[i].F[j].fNum] = X[i].F[j].fVal;
+		UINT i = 0;
+		while(i < totNumVects) {	//Put X in original order
+		    if(i == X[i].index)
+		    	i++;
+		    else
+		    	swap(X[i], X[X[i].index]);
+		}
+	}
+
 	void swapX(UINT i, UINT j) {
 		swap(X[i], X[j]);
 	}
@@ -103,36 +126,56 @@ public:
 		}
 	}
 
-	void writeWH(UINT R, UINT N, vector < vector< double> > &H) {
+	void writeWH() {
+		for(UINT ind = 0; ind < totNumVects; ind++) {
+			if (hOUT.is_open() && hOUT.good()) {
+				vector <double>::iterator t = H[ind].begin();
+				hOUT << '1';
+				for (UINT i = 1;t != H[ind].end(); t++, i++)
+					if(*t != 0)
+						hOUT <<" "<< i<<':'<<setprecision(8) << *t;
+				hOUT<<endl;
+			} else {
+				cerr << "Cannot write matrix factor H to file\n";
+				exit(1);
+			}
+		}
 		for(UINT ind = 0; ind < R; ind++) {
 			if (wOUT.is_open() && wOUT.good()) {
-				UINT numF = X[ind].numFeats;
-				wOUT<< 1;
-				for (UINT fl = 0; fl < numF; fl++)
-					wOUT <<" "<< X[ind].F[fl].fNum<<":"<< setprecision(8) << X[ind].F[fl].fVal;
+				wOUT << '1';
+				UINT size = W[ind].size();
+				if(size > 0) {
+					//sort each W[ind] hash before writing
+					vector <UINT> fNums;
+					auto t = W[ind].begin(), e = W[ind].end();
+					for(; t!=e; t++)
+						if(t->second > 0.0)
+							fNums.push_back(t->first);
+					sort(fNums.begin(),fNums.end());
+					size = fNums.size();
+					for (UINT i = 0; i< size;i++) {
+						UINT fNum = fNums[i];
+						wOUT <<" "<< fNum <<':'<<setprecision(8) << W[ind][fNum];
+					}
+				}
 				wOUT<<endl;
 			} else {
 				cerr << "Cannot write matrix factor W to file\n";
 				exit(1);
 			}
-			writeH(ind, H);
 		}
-		for(UINT ind = R; ind < N; ind++)
-			writeH(ind, H);
 	}
 
-	void writeH(UINT ind, vector < vector< double> > &H) {
-		if (hOUT.is_open() && hOUT.good()) {
-			vector <double>::iterator t = H[ind].begin();
-			hOUT << '1';
-			for (UINT i = 1;t != H[ind].end(); t++, i++)
-				if(*t != 0)
-					hOUT <<" "<< i<<':'<<setprecision(8) << *t;
-			hOUT<<endl;
-		} else {
-			cerr << "Cannot write matrix factor H to file\n";
-			exit(1);
-		}
+	UINT getD() {
+		return D;
+	}
+
+	UINT getN() {
+		return totNumVects;
+	}
+
+	UINT getR() {
+		return R;
 	}
 };
 

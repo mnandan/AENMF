@@ -24,16 +24,18 @@ class fHand_T {
 	TrainDat *TrD;
 	vector <FeatType> Ftemp;
 	UINT D;
+	UINT R;
 	UINT totVects;
 	UINT maxNNZ;
 public:
-	fHand_T(UINT D, UINT totVects, char *fName, TrainDat *TrD) {
+	fHand_T(char *fName, TrainDat *TrD) {
 		inpFH.open(fName);
 		if(! (inpFH.is_open() && inpFH.good())) {
 			cerr << "Cannot open file " << fName << endl;
 			exit(1);
 		}
 		lineNum = 0;
+
 		delims1 = new bool[128];
 		for (int i = 0; i < 128; i++)
 			delims1[i] = false;
@@ -47,8 +49,9 @@ public:
 		delims2['\t'] = true;
 		delims2[':'] = true;
 		this->TrD = TrD;
-		this->totVects = totVects;
-		this->D = D;
+		R = TrD->getR();
+		D = TrD->getD();
+		totVects = TrD->getN();
 		maxNNZ = 0;
 	}
 

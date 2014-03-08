@@ -12,264 +12,77 @@
 #include <vector>
 #include "getFactors.h"
 #include <fstream>
+#include <exception>
 
 using namespace std;
-double GetFact::getV(UINT numRp, UINT startInd, UINT endInd) {
-	UINT numVects = endInd - startInd;
+
+void GetFact::getWinit() {
 	UINT numSubs = (UINT)ceil((double)numRp/(double)M_VAL);
-	UINT subSize = (UINT)ceil((double)numVects/(double)numSubs);
-	X2 = new DataVect[numVects];
-	distVals = new DistDat[numVects];
-	clustEndInd = new UINT[endInd];
-	rpCache = new double*[numRp]; // size RxR
-	lbdArr = new double*[1];
-	lbdArr[0] = new double[numRp];
-	for (UINT ind = 0; ind < numRp; ind++)
-		rpCache[ind] = new double[numRp];
-	xTz = new double[numRp];
+	UINT subSize = (UINT)ceil((double)totVects/(double)numSubs);
+	X2 = new DataVect[totVects];
+	distVals = new DistDat[totVects];
+	clustEndInd = new UINT[totVects];
 
-	UINT cSInd = startInd; //clustStartIndex
-	UINT cEInd; //clustEndIndex
-	UINT totBatchRp = 0;
+	UINT cSInd = 0, totBatchRp = 0, cEInd = 0;
+	UINT flsSubSize = min(subSize*50,totVects);
 
-	UINT flsSubSize = min(subSize*50,numVects);
-	segregateDataFLS2(startInd, endInd, flsSubSize);
-	segregateDataSLS(startInd, endInd, subSize);
+	segregateDataFLS2(0, totVects, flsSubSize);
+	segregateDataSLS(0, totVects, subSize);
 
-	while (cSInd < endInd) {
+	while (cSInd < totVects) {
 		cEInd = clustEndInd[cSInd];
 		UINT clustSize = cEInd - cSInd;
 		if (clustSize > M_VAL) {
-			UINT rpInd = 0;
 			// find max norm vect: x1
 			UINT maxNormInd = 0;
 			double maxDistVal = -INF;
+			UINT rpInd = 0;
 			for (UINT vI = cSInd; vI < cEInd; vI++) {
 				if (X[vI].nrm > maxDistVal) {
 					maxNormInd = vI;
 					maxDistVal = X[vI].nrm;
 				}
 			}
-			trDat->swapX(cSInd + rpInd, maxNormInd);
+			trDat->swapX(cSInd +rpInd, maxNormInd);
 			rpInd++;
-
 			// find max norm from x1: x2
 			UINT maxNormInd2 = 0;
 			double maxDistVal2 = -INF;
 			for (UINT ind = cSInd + rpInd; ind < cEInd; ind++) {
-				double curr_dist = X[ind].nrm + X[cSInd].nrm - 2 * getDotProduct(cSInd, ind);
+				double curr_dist = X[ind].nrm + X[cSInd].nrm - 2 * getDotProductX(cSInd, ind);
 				if (curr_dist > maxDistVal2) {
 					maxNormInd2 = ind;
 					maxDistVal2 = curr_dist ;
 				}
 			}
 			trDat->swapX(cSInd + rpInd, maxNormInd2);
-			rpCache[0][0] = X[cSInd].nrm;
-			rpCache[1][1] = X[cSInd + 1].nrm;
-			rpCache[0][1] = (rpCache[0][0] + rpCache[1][1] - maxDistVal2 ) / 2.0;
-			rpInd++;
-			// find x_i that gives max f value: x3 ... xM
-			for (rpInd = 2; rpInd < M_VAL; rpInd++) {
-				maxNormInd = 0;
-				maxDistVal = -INF;
-				for (UINT ind = cSInd + rpInd; ind < cEInd; ind++) {
-					for (UINT rpInd2 = 0; rpInd2 < rpInd; rpInd2++)
-						xTz[rpInd2] = getDotProduct(ind, rpInd2 + cSInd);
-					double rep_err = getRepErr(rpInd, X[ind].nrm, lbdArr[0]);
-
-					if (rep_err > maxDistVal) {
-						maxNormInd = ind;
-						maxDistVal = rep_err;
-					}
-				}
-				trDat->swapX(cSInd + rpInd, maxNormInd);
-				updateCache(cSInd, rpInd);
-				//cout<< rpInd<<endl;
-			}
 		}
-
 		UINT rpSz = min(clustSize, (UINT) M_VAL);
-
 		for (UINT ind = 0; ind < rpSz; ind++) {
 			UINT origInd = ind + cSInd;
 			trDat->swapX(totBatchRp, origInd);
 			totBatchRp++;
 		}
-
-		cSInd = cEInd;
-	}
-	for (UINT ind = 0; ind < numRp; ind++)
-		delete[] rpCache[ind];
-	delete[] rpCache;
-	delete[] lbdArr[0];
-	delete[] lbdArr;
-	delete[] xTz;
-	delete[] X2;
-	delete[] distVals;
-	delete[] clustEndInd;
-
-	return 0;
-}
-
-
-double GetFact::getH(UINT numRp, UINT startInd, UINT endInd, vector < vector< double> > &H) {
-	UINT numVects = endInd - startInd;
-	rpCache = new double*[numRp]; // size RxR
-	for (UINT ind = 0; ind < numRp; ind++)
-		rpCache[ind] = new double[numRp];
-	lbdArr = new double*[1];
-	lbdArr[0] = new double[numRp];
-	xTz = new double[numRp];
-
-	for (UINT ind = 0; ind < numRp; ind++) {
-        updateCache(0, ind);
-        for (UINT ind2 = 0; ind2 < numRp; ind2++)
-        	H[X[ind].index].push_back(0);
-        H[X[ind].index][ind] = 1;
-    }
-// derive lambda for other vectors
-    for (UINT ind = numRp; ind < numVects; ind++) {
-        for (UINT rpInd2 = 0; rpInd2 < numRp; rpInd2++)
-            xTz[rpInd2] = getDotProduct(ind, rpInd2);
-        deriveAE(numRp, lbdArr[0]);
-        for (UINT ind2 = 0; ind2 < numRp; ind2++)
-        	H[X[ind].index].push_back(lbdArr[0][ind2]);
-    }
-
-	for (UINT ind = 0; ind < numRp; ind++)
-		delete[] rpCache[ind];
-	delete[] rpCache;
-	delete[] lbdArr[0];
-	delete[] lbdArr;
-	delete[] xTz;
-
-	return 0;
-}
-
-double GetFact::getFactors(UINT numRp, UINT startInd, UINT endInd, vector < vector< double> > &H) {
-	UINT numVects = endInd - startInd;
-	UINT numSubs = (UINT)ceil((double)numRp/(double)M_VAL);
-	UINT subSize = (UINT)ceil((double)numVects/(double)numSubs);
-	X2 = new DataVect[numVects];
-	distVals = new DistDat[numVects];
-	clustEndInd = new UINT[endInd];
-	lbdArr = new double*[subSize]; // size VxR
-	rpCache = new double*[numRp]; // size RxR
-	for (UINT ind = 0; ind < numRp; ind++) {
-		lbdArr[ind] = new double[numRp];
-		rpCache[ind] = new double[numRp];
-	}
-	for (UINT ind = numRp; ind < subSize; ind++)
-		lbdArr[ind] = new double[numRp];
-	xTz = new double[numRp];
-
-	UINT cSInd = startInd; //clustStartIndex
-	UINT cEInd; //clustEndIndex
-	UINT totBatchRp = 0;
-
-	UINT flsSubSize = min(subSize*50,numVects);
-	segregateDataFLS2(startInd, endInd, flsSubSize);
-	segregateDataSLS(startInd, endInd, subSize);
-
-	while (cSInd < endInd) {
-		cEInd = clustEndInd[cSInd];
-		UINT clustSize = cEInd - cSInd;
-		for (UINT ind = 0; ind < M_VAL; ind++) {
-			for (UINT rpInd = 0; rpInd < M_VAL; rpInd++)
-				lbdArr[ind][rpInd] = 0;
-			lbdArr[ind][ind] = 1;
-		}
-
-		if (clustSize > M_VAL) {
-			UINT rpInd = 0;
-			// find max norm vect: x1
-			UINT maxNormInd = 0;
-			double maxDistVal = -INF;
-			for (UINT vI = cSInd; vI < cEInd; vI++) {
-				if (X[vI].nrm > maxDistVal) {
-					maxNormInd = vI;
-					maxDistVal = X[vI].nrm;
-				}
-			}
-			trDat->swapX(cSInd + rpInd, maxNormInd);
-			rpInd++;
-
-			// find max norm from x1: x2
-			UINT maxNormInd2 = 0;
-			double maxDistVal2 = -INF;
-			for (UINT ind = cSInd + rpInd; ind < cEInd; ind++) {
-				double curr_dist = X[ind].nrm + X[cSInd].nrm - 2 * getDotProduct(cSInd, ind);
-				if (curr_dist > maxDistVal2) {
-					maxNormInd2 = ind;
-					maxDistVal2 = curr_dist ;
-				}
-			}
-			trDat->swapX(cSInd + rpInd, maxNormInd2);
-			rpCache[0][0] = X[cSInd].nrm;
-			rpCache[1][1] = X[cSInd + 1].nrm;
-			rpCache[0][1] = (rpCache[0][0] + rpCache[1][1] - maxDistVal2 ) / 2.0;
-			rpInd++;
-			// find x_i that gives max f value: x3 ... xM
-			for (rpInd = 2; rpInd < M_VAL; rpInd++) {
-				maxNormInd = 0;
-				maxDistVal = -INF;
-				for (UINT ind = cSInd + rpInd; ind < cEInd; ind++) {
-					for (UINT rpInd2 = 0; rpInd2 < rpInd; rpInd2++)
-						xTz[rpInd2] = getDotProduct(ind, rpInd2 + cSInd);
-					double rep_err = getRepErr(rpInd, X[ind].nrm, lbdArr[subSize - 1]);
-
-					if (rep_err > maxDistVal) {
-						maxNormInd = ind;
-						maxDistVal = rep_err;
-					}
-				}
-				trDat->swapX(cSInd + rpInd, maxNormInd);
-				updateCache(cSInd, rpInd);
-				//cout<< rpInd<<endl;
-			}
-		}
-
-		UINT rpSz = min(clustSize, (UINT) M_VAL);
-
-		for (UINT ind = 0; ind < rpSz; ind++) {
-			UINT origInd = ind + cSInd;
-			trDat->swapX(totBatchRp, origInd);
-//			trDat->writeAE(totBatchRp);
-			totBatchRp++;
-		}
-
 		cSInd = cEInd;
 	}
 
-	for (UINT ind = 0; ind < numRp; ind++) {
-        updateCache(0, ind);
-        for (UINT ind2 = 0; ind2 < numRp; ind2++)
-        	H[X[ind].index].push_back(0);
-        H[X[ind].index][ind] = 1;
-    }
-// derive lambda for other vectors
-    for (UINT ind = numRp; ind < numVects; ind++) {
-        for (UINT rpInd2 = 0; rpInd2 < numRp; rpInd2++)
-            xTz[rpInd2] = getDotProduct(ind, rpInd2);
-        deriveAE(numRp, lbdArr[numRp]);
-        for (UINT ind2 = 0; ind2 < numRp; ind2++)
-        	H[X[ind].index].push_back(lbdArr[numRp][ind2]);
-    }
-
-	for (UINT ind = 0; ind < numRp; ind++) {
-		delete[] rpCache[ind];
-		delete[] lbdArr[ind];
-	}
-	for (UINT ind = numRp; ind < subSize; ind++)
-		delete[] lbdArr[ind];
-	delete[] rpCache;
-	delete[] lbdArr;
-	delete[] xTz;
 	delete[] X2;
 	delete[] distVals;
 	delete[] clustEndInd;
+}
 
-	return 0;
+
+void GetFact::getH() {
+	for (UINT ind = 0; ind < numRp; ind++)
+        updateCacheW(0, ind);
+// derive lambda for other vectors
+    for (UINT ind = 0; ind < totVects; ind++) {
+        for (UINT rpInd2 = 0; rpInd2 < numRp; rpInd2++)
+            xTz[rpInd2] = getDotProductXW(ind, rpInd2);
+        deriveAE(numRp, lbdArr);
+        for (UINT ind2 = 0; ind2 < numRp; ind2++)
+        	trDat->H[X[ind].index].push_back(lbdArr[ind2]);
+    }
 }
 
 // C code for the quickselect algorithm (Hoare's selection algorithm), Ref. Numerical Recipes in C
@@ -345,7 +158,7 @@ void GetFact::segregateDataFLS2(UINT startIndex, UINT endIndex, UINT P_VAL) {
 		UINT k;
 		UINT midVal;
 		for (k = startIndex; k < endIndex; k++) { // step 1
-			distVals[p].dist = getDotProduct(k, anchorInd);
+			distVals[p].dist = getDotProductX(k, anchorInd);
 			distVals[p++].ind = k;
 		}
 		midVal = p / 2;
@@ -361,7 +174,7 @@ void GetFact::segregateDataFLS2(UINT startIndex, UINT endIndex, UINT P_VAL) {
 		UINT k;
 		UINT midVal;
 		for (k = startIndex; k < endIndex; k++) {
-			distVals[p].dist = getDotProduct(k, anchorInd);
+			distVals[p].dist = getDotProductX(k, anchorInd);
 			distVals[p++].ind = k;
 		}
 		midVal = p / 2;
@@ -403,7 +216,7 @@ void GetFact::segregateDataSLS(UINT startIndex, UINT endIndex, UINT V_VAL) {
 				}
 			}
 			for (k = vSubsetStart; k < pSubsetEnd; k++) {
-				distVals[p].dist = X[k].nrm - 2*getDotProduct(k, anchorInd);
+				distVals[p].dist = X[k].nrm - 2*getDotProductX(k, anchorInd);
 				distVals[p++].ind = k;
 			}
 			quickSelectDist(p, V_VAL); // select closest V vectors
