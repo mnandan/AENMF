@@ -269,7 +269,7 @@ void DeriveAE::deriveAE2(UINT rpSize, double *lambda) {
 }
 
 double DeriveAE::getRepErr(UINT rpSize, double xNorm, double *lambda) {
-	deriveAE2(rpSize, lambda);
+	deriveAE(rpSize, lambda);
 	double v1 = 0, v2 = 0, err;
 	for (UINT i = 0; i < rpSize; i++) {
 		if(lambda[i] != 0) {

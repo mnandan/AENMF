@@ -20,7 +20,7 @@ using namespace std;
 
 typedef unsigned int UINT;
 typedef char LABEL_T;
-#define M_VAL (UINT)10
+#define M_VAL (UINT)2
 #define INF HUGE_VAL
 
 typedef struct {
