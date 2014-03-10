@@ -172,11 +172,7 @@ double DeriveAE::deriveHi(UINT hInd) {
 	double normSum = X[hInd].nrm;
 	for(UINT i = 0; i < R; i++) {
 		if(H[hInd][i] != 0) {
-			normSum -= 2*H[hInd][i]*xTz[i];
-			double subSum = 0;
-			for(UINT j = 0; j < R; j++)
-				subSum += rpCache[i][j]*H[hInd][j];
-			normSum += subSum*H[hInd][i];
+			normSum += (G[i] - xTz[i])*H[hInd][i];
 		}
 	}
 	return normSum;
