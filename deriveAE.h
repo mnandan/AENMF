@@ -15,8 +15,6 @@
 #define LAMBDA_MIN 0
 
 class DeriveAE {
-	UINT R, D, N;
-	TrainDat *trDat;
 	double getDotProductXW(UINT i, UINT j) {
 		double dotProduct = 0;
 		FeatType *F = X[i].F;
@@ -54,6 +52,9 @@ protected:
 	UINT *index;
 	double *G, *xTz;
 	const DataVect* X;
+	UINT R, D, N;
+	TrainDat *trDat;
+
 public:
 	DeriveAE(TrainDat *trDat) {
 		this->trDat = trDat;
@@ -92,6 +93,7 @@ public:
 
 	double deriveW();
 	double deriveH();
+	double getRepErr(UINT rpSize, double xNorm, double *lambda);
 };
 
 

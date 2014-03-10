@@ -21,7 +21,7 @@ using namespace std;
 
 typedef unsigned int UINT;
 typedef char LABEL_T;
-#define M_VAL (UINT)2
+#define M_VAL (UINT)10
 #define INF HUGE_VAL
 
 typedef struct {
@@ -117,17 +117,10 @@ public:
 	}
 
 	void copyXW() {	//initialize W matrix with the first R vectors in X
-		for(UINT i = 0; i<R; i++) {
+		for(UINT i = 0; i< R; i++) {
 			FeatType * F = X[i].F;
 			for(UINT j = 0; j < X[i].numFeats; j++)
 				W[i][F[j].fNum] = F[j].fVal;
-		}
-		UINT i = 0;
-		while(i < totNumVects) {	//Put X in original order
-		    if(i == X[i].index)
-		    	i++;
-		    else
-		    	swap(X[i], X[X[i].index]);
 		}
 	}
 

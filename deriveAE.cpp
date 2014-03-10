@@ -16,6 +16,8 @@ using namespace std;
 #define REG_PARAM (double) 0.0
 double DeriveAE::deriveW( ) {
 	double *lambda = new double[D];
+	for (UINT i = 0; i < R; i++)
+		index[i] = i;
 	for (UINT ind = 0; ind < R; ind++) {
 		for (UINT ind2 = 0; ind2 < R; ind2++)
 			rpCache[ind][ind2] = 0;
@@ -95,7 +97,8 @@ double DeriveAE::deriveW( ) {
 
 double DeriveAE::deriveH() {
 	updateCacheW();	//update rpCache
-
+	for (UINT i = 0; i < R; i++)
+		index[i] = i;
 // derive lambda for other vectors
 	double frobNormSq = 0;
 	for (UINT ind = 0; ind < N; ind++) {
@@ -175,5 +178,76 @@ double DeriveAE::deriveHi(UINT hInd) {
 			normSum += (G[i] - xTz[i])*H[hInd][i];
 		}
 	}
+	return normSum;
+}
+
+double DeriveAE::getRepErr(UINT rpSize, double xNorm, double *lambda) {
+	// initialize
+	double PG, Gmax, Gmin;
+	double GmaxOld = INF, GminOld = -INF;
+	UINT activeSize = rpSize;
+	for (UINT i = 0; i < rpSize; i++) {
+		G[i] = -xTz[i];
+		lambda[i] = 0;
+		index[i] = i;
+	}
+
+	// optimization step
+	int iter = 0;
+	while (iter++ < 1000) {
+		for (UINT i = 0; i < activeSize; i++) {
+			UINT j = i + rand() % (activeSize - i);
+			swap(index[i], index[j]);
+		}
+		Gmax = -INF;
+		Gmin = INF;
+		for (UINT s = 0; s < activeSize; s++) {
+			UINT vI = index[s]; //relative vector index
+			PG = 0;
+			if (lambda[vI] == 0) {
+				if (G[vI] > GmaxOld) {
+					activeSize--;
+					swap(index[s], index[activeSize]);
+					s--;
+					continue;
+				} else if (G[vI] < 0)
+					PG = G[vI];
+			} else
+				PG = G[vI];
+
+			if (fabs(PG) > TAU) {
+				double lambdaNew = max(lambda[vI] - PG / rpCache[vI][vI], 0.0); //constraint
+				double delta = lambdaNew - lambda[vI];
+				lambda[vI] = lambdaNew;
+				for (UINT k = 0; k < rpSize; k++)
+					G[k] += rpCache[min(vI, (UINT) k)][max(vI, (UINT) k)] * delta;
+
+			}
+			Gmax = max(Gmax, PG);
+			Gmin = min(Gmin, PG);
+		}
+		if (Gmax - Gmin <= 0.1) {
+			if (activeSize == rpSize)
+				break;
+			else {
+				activeSize = rpSize;
+				//cout << "*";
+				GmaxOld = INF;
+				GminOld = -INF;
+				continue;
+			}
+		}
+		GmaxOld = Gmax;
+		GminOld = Gmin;
+		if (GmaxOld <= 0)
+			GmaxOld = INF;
+		if (GminOld >= 0)
+			GminOld = -INF;
+	}
+
+	double normSum = xNorm;
+	for(UINT i = 0; i < rpSize; i++)
+		if(lambda[i] != 0)
+			normSum += (G[i] - xTz[i])*lambda[i];
 	return normSum;
 }

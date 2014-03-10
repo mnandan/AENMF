@@ -49,19 +49,20 @@ int main(int argc, char *argv[]) {
 	GetFact fact(&trDat);
 // Compute initial W and H matrices
 	fact.getWinit();
-	fact.getH();
-	//cout << trDat.calcNorm()<< " iter "<<0<<endl;
-	double prevNorm = INF, frobNorm;
-	for(UINT i = 0; i < 100; i++) {
+	double frobNorm = fact.getH();
+	double prevNorm = frobNorm;
+	cout << "init err = "<<frobNorm << ", ";
+	for(UINT i = 1; i <= 100; i++) {
 		fact.getW();
 		frobNorm = fact.getH();
+//		cout << frobNorm << " iter "<<i<<endl;
 		if(prevNorm - frobNorm < 0.01)
 			break;
 		prevNorm = frobNorm;
 	}
 // Compute time taken and write output files
 	double cpuTimeTaken = difftime(clock(), begin) / CLOCKS_PER_SEC;
-	cout <<frobNorm<<" CPU time taken = " << cpuTimeTaken <<endl;
+	cout << "final err = " <<frobNorm<<", time = " << cpuTimeTaken <<endl;
 	trDat.writeWH();
 	return 1;
 }

@@ -17,19 +17,20 @@
 using namespace std;
 
 void GetFact::getWinit() {
-	UINT numSubs = (UINT)ceil((double)numRp/(double)M_VAL);
-	UINT subSize = (UINT)ceil((double)totVects/(double)numSubs);
-	X2 = new DataVect[totVects];
-	distVals = new DistDat[totVects];
-	clustEndInd = new UINT[totVects];
+	UINT numSubs = (UINT)ceil((double)R/(double)M_VAL);
+	UINT subSize = (UINT)ceil((double)N/(double)numSubs);
+	X2 = new DataVect[N];
+	distVals = new DistDat[N];
+	clustEndInd = new UINT[N];
+	double *lambda = new double[R];
 
 	UINT cSInd = 0, totBatchRp = 0, cEInd = 0;
-	UINT flsSubSize = min(subSize*50,totVects);
+	UINT flsSubSize = min(subSize*50,N);
 
-	segregateDataFLS2(0, totVects, flsSubSize);
-	segregateDataSLS(0, totVects, subSize);
+	segregateDataFLS2(0, N, flsSubSize);
+	segregateDataSLS(0, N, subSize);
 
-	while (cSInd < totVects) {
+	while (cSInd < N) {
 		cEInd = clustEndInd[cSInd];
 		UINT clustSize = cEInd - cSInd;
 		if (clustSize > M_VAL) {
@@ -56,6 +57,25 @@ void GetFact::getWinit() {
 				}
 			}
 			trDat->swapX(cSInd + rpInd, maxNormInd2);
+			rpCache[0][0] = X[cSInd].nrm;
+			rpCache[1][1] = X[cSInd + 1].nrm;
+			rpCache[0][1] = (rpCache[0][0] + rpCache[1][1] - maxDistVal2 ) / 2.0;
+			for (rpInd = 2; rpInd < M_VAL; rpInd++) {
+				maxNormInd = 0;
+				maxDistVal = -INF;
+				for (UINT ind = cSInd + rpInd; ind < cEInd; ind++) {
+					for (UINT rpInd2 = 0; rpInd2 < rpInd; rpInd2++)
+						xTz[rpInd2] = getDotProductX(ind, rpInd2 + cSInd);
+					double rep_err = getRepErr(rpInd, X[ind].nrm, lambda);
+
+					if (rep_err > maxDistVal) {
+						maxNormInd = ind;
+						maxDistVal = rep_err;
+					}
+				}
+				trDat->swapX(cSInd + rpInd, maxNormInd);
+				updateCacheX(cSInd, rpInd);
+			}
 		}
 		UINT rpSz = min(clustSize, (UINT) M_VAL);
 		for (UINT ind = 0; ind < rpSz; ind++) {
@@ -66,6 +86,7 @@ void GetFact::getWinit() {
 		cSInd = cEInd;
 	}
 
+	delete[] lambda;
 	delete[] X2;
 	delete[] distVals;
 	delete[] clustEndInd;
