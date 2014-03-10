@@ -12,10 +12,6 @@
 #include "deriveAE.h"
 
 class GetFact: public DeriveAE{
-	DataVect *X2;
-	DistDat * distVals;
-	UINT *clustEndInd;
-
 	double getDotProductX(UINT i, UINT j) {
 		double dotProduct = 0;
 		UINT fn1 = 0, fn2 = 0;
@@ -41,15 +37,10 @@ class GetFact: public DeriveAE{
 			rpCache[indAdd][ind - 1] = rpCache[ind - 1][indAdd];
 		}
 	}
-	DistDat quickSelectDist(UINT n, UINT k);
-	void segregateDataFLS2(UINT startIndex, UINT endIndex, UINT P_VAL);
-	void segregateDataSLS(UINT startIndex, UINT endIndex, UINT V_VAL);
 
 public:
 	GetFact(TrainDat *trDat): DeriveAE(trDat) {
-		X2 = NULL;
-		distVals = NULL;
-		clustEndInd = NULL;
+		;
 	}
 
 	~GetFact() {
