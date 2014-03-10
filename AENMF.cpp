@@ -14,6 +14,7 @@
 #include "fileInt.h"
 #include "getFactors.h"
 #include "common.h"
+#include <cmath>
 
 using namespace std;
 
@@ -50,13 +51,18 @@ int main(int argc, char *argv[]) {
 	fact.getWinit();
 	trDat.copyXW();
 	fact.getH();
-//	for(UINT i = 0; i < 10; i++) {
-//		fact.getW();
-//		fact.getH();
-//	}
+	//cout << trDat.calcNorm()<< " iter "<<0<<endl;
+	double prevNorm = INF, frobNorm;
+	for(UINT i = 0; i < 100; i++) {
+		fact.getW();
+		frobNorm = fact.getH();
+		if(prevNorm - frobNorm < 0.01)
+			break;
+		prevNorm = frobNorm;
+	}
 // Compute time taken and write output files
 	double cpuTimeTaken = difftime(clock(), begin) / CLOCKS_PER_SEC;
-	cout << "CPU time taken = " << cpuTimeTaken <<endl;
+	cout <<frobNorm<<" CPU time taken = " << cpuTimeTaken <<endl;
 	trDat.writeWH();
 	return 1;
 }

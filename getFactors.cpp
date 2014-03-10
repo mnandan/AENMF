@@ -72,18 +72,14 @@ void GetFact::getWinit() {
 }
 
 
-void GetFact::getH() {
-	for (UINT ind = 0; ind < numRp; ind++)
-        updateCacheW(0, ind);
-// derive lambda for other vectors
-    for (UINT ind = 0; ind < totVects; ind++) {
-        for (UINT rpInd2 = 0; rpInd2 < numRp; rpInd2++)
-            xTz[rpInd2] = getDotProductXW(ind, rpInd2);
-        deriveAE(numRp, lbdArr);
-        for (UINT ind2 = 0; ind2 < numRp; ind2++)
-        	trDat->H[X[ind].index].push_back(lbdArr[ind2]);
-    }
+double GetFact::getH() {
+	return deriveH();
 }
+
+double GetFact::getW() {
+	return deriveW();
+}
+
 
 // C code for the quickselect algorithm (Hoare's selection algorithm), Ref. Numerical Recipes in C
 // selects element in array (arr) that is kth in largest among the first n elements

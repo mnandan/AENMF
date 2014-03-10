@@ -15,4 +15,4 @@ AENMF: AENMF.cpp deriveAE.o getFactors.o fileInt.o
 	$(CXX) $(CFLAGS)  -o AENMF AENMF.cpp deriveAE.o getFactors.o fileInt.o
 
 clean:
-	rm -f *~ *.o AENMF
+	rm -f *~ *.o *.dat AENMF

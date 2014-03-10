@@ -15,7 +15,6 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
-#include <unordered_map>
 #include <algorithm>
 
 using namespace std;
@@ -50,27 +49,38 @@ class TrainDat {
 	char aeFile[1024];
 	UINT vectNum;
 	UINT totNumVects;
+    double ** W;	//factor W
+	double ** H;	//factor H
+
 public:
 	const DataVect * XC;
-    vector <unordered_map < UINT, double> > W;	//key = fNum, val = fVal
-	vector < vector< double> > H;	//factor H
+    const double * const * WC;	//factor W
+	const double *const * HC;	//factor H
+
 	TrainDat(UINT D, UINT N, UINT R, char *hFname, char *wFname) {
 		this->D = D;
 		totNumVects = N;
 		this->R = R;
 		X = new DataVect[totNumVects];
+		H = new double*[totNumVects];
 		for (UINT ind = 0; ind < totNumVects; ind++) {
 			X[ind].F = NULL;
 			X[ind].numFeats = 0;
-			H.push_back(vector <double> ());	//push empty vector
+			H[ind] = new double [R];
+			for (UINT ind2 = 0; ind2 < R; ind2++)
+				H[ind][ind2] = 0;
 		}
 		XC = X;
+		HC = H;
 		vectNum = 0;
 
+		W = new double*[R];
 		for (UINT ind = 0; ind < R; ind++) {
-			unordered_map < UINT, double> temp;
-			W.push_back(temp);
+			W[ind] = new double[D];
+			for (UINT ind2 = 0; ind2 < D; ind2++)
+				W[ind][ind2] = 0;
 		}
+		WC = W;
 
 		hOUT.open(hFname);
 		wOUT.open(wFname);
@@ -79,9 +89,15 @@ public:
 	~TrainDat() {
 		hOUT.close();
 		wOUT.close();
-		for (UINT ind = 0; ind < totNumVects; ind++)
+		for (UINT ind = 0; ind < totNumVects; ind++) {
+			delete [] H[ind];
 			if (X[ind].F != NULL)
 				delete[] X[ind].F;
+		}
+		delete [] H;
+		for (UINT ind = 0; ind < R; ind++)
+			delete [] W[ind];
+		delete [] W;
 	}
 
 	void addVector(vector<FeatType> &F, UINT numFeats) {
@@ -100,10 +116,12 @@ public:
 		vectNum++;
 	}
 
-	void copyXW() {	//initialize W matrix with the first numRp vector in X
-		for(UINT i = 0; i<R; i++)
+	void copyXW() {	//initialize W matrix with the first R vectors in X
+		for(UINT i = 0; i<R; i++) {
+			FeatType * F = X[i].F;
 			for(UINT j = 0; j < X[i].numFeats; j++)
-				W[i][X[i].F[j].fNum] = X[i].F[j].fVal;
+				W[i][F[j].fNum] = F[j].fVal;
+		}
 		UINT i = 0;
 		while(i < totNumVects) {	//Put X in original order
 		    if(i == X[i].index)
@@ -126,14 +144,31 @@ public:
 		}
 	}
 
+	void putH(UINT i, double * lambda) {
+		for (UINT k = 0; k < R; k++)
+			H[i][k] = lambda[k];
+	}
+
+	void putW(UINT i, double * lambda) {
+		for (UINT k = 0; k < D; k++)
+			W[i][k] = lambda[k];
+	}
+
+	void putWval(UINT i, UINT f, double val) {
+		W[i][f] = val;
+	}
+
+	void putHval(UINT i, UINT f, double val) {
+		H[i][f] = val;
+	}
+
 	void writeWH() {
 		for(UINT ind = 0; ind < totNumVects; ind++) {
 			if (hOUT.is_open() && hOUT.good()) {
-				vector <double>::iterator t = H[ind].begin();
 				hOUT << '1';
-				for (UINT i = 1;t != H[ind].end(); t++, i++)
-					if(*t != 0)
-						hOUT <<" "<< i<<':'<<setprecision(8) << *t;
+				for (UINT k = 0; k < R; k++)
+					if(H[ind][k] != 0)
+						hOUT <<" "<< k + 1<<':'<<setprecision(8) << H[ind][k];
 				hOUT<<endl;
 			} else {
 				cerr << "Cannot write matrix factor H to file\n";
@@ -143,27 +178,40 @@ public:
 		for(UINT ind = 0; ind < R; ind++) {
 			if (wOUT.is_open() && wOUT.good()) {
 				wOUT << '1';
-				UINT size = W[ind].size();
-				if(size > 0) {
-					//sort each W[ind] hash before writing
-					vector <UINT> fNums;
-					auto t = W[ind].begin(), e = W[ind].end();
-					for(; t!=e; t++)
-						if(t->second > 0.0)
-							fNums.push_back(t->first);
-					sort(fNums.begin(),fNums.end());
-					size = fNums.size();
-					for (UINT i = 0; i< size;i++) {
-						UINT fNum = fNums[i];
-						wOUT <<" "<< fNum <<':'<<setprecision(8) << W[ind][fNum];
-					}
-				}
+				for (UINT k = 0; k < D; k++)
+					if(W[ind][k] != 0)
+						wOUT <<" "<< k + 1<<':'<<setprecision(8) << W[ind][k];
 				wOUT<<endl;
 			} else {
 				cerr << "Cannot write matrix factor W to file\n";
 				exit(1);
 			}
 		}
+	}
+
+	double calcNorm() {
+		double *hwVect = new double[D];
+		double frobNorm = 0;
+		for(UINT i = 0;i < totNumVects;i++) {
+			for(UINT j = 0;j < D;j++)
+				hwVect[j] = 0;
+			for(UINT j = 0;j < R;j++) {
+				if(H[i][j] != 0 )
+					for(UINT k = 0;k < D;k++)
+						hwVect[k] += H[i][j]*W[j][k];
+			}
+			FeatType * F = X[i].F;
+			UINT prevFnum = 0;
+			for(UINT fID = 0;fID < X[i].numFeats;fID++) {
+				for(;prevFnum < F[fID].fNum; prevFnum++)
+					frobNorm += hwVect[prevFnum] * hwVect[prevFnum];
+				double val = F[fID].fVal - hwVect[F[fID].fNum];
+				frobNorm += val*val;
+				prevFnum++;
+			}
+		}
+		delete [] hwVect;
+		return frobNorm;
 	}
 
 	UINT getD() {
@@ -177,6 +225,19 @@ public:
 	UINT getR() {
 		return R;
 	}
+
+	void clearW() {
+		for (UINT ind = 0; ind < R; ind++)
+			for (UINT ind2 = 0; ind2 < D; ind2++)
+				W[ind][ind2] = 0;
+	}
+
+	void clearH() {
+		for (UINT ind = 0; ind < totNumVects; ind++)
+			for (UINT ind2 = 0; ind2 < R; ind2++)
+				H[ind][ind2] = 0;
+	}
+
 };
 
 #endif /* COMMON_H_ */

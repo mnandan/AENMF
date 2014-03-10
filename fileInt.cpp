@@ -36,6 +36,7 @@ bool fHand_T:: procLine() {
 			for(;!delims2[(int)lineC[cInd]] && cInd < lineSz; ++cInd);		//find fNum characters
 			lineC[cInd] = 0;	//end of sub-string
 			fNum = (UINT) strtoll(p, &endPtr, 10);
+			fNum -= 1;		// LIBSVM format features are numbered from 1, need it to be from 0
 			if (endPtr == p || *endPtr != '\0') {
 				cerr << "Error in input file read\n";
 				exit(1);

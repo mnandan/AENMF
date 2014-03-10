@@ -15,59 +15,83 @@
 #define LAMBDA_MIN 0
 
 class DeriveAE {
-	UINT rpSize;
-	enum {
-		LOWER_BOUND, UPPER_BOUND, FREE
-	};
-	char *lambdaStat; // LOWER_BOUND, UPPER_BOUND, FREE
-
-	double *lambda;
-	int *index;
-	double *G;
-	void update_lambdaStat(int i) {
-		if (lambda[i] >= LAMBDA_MAX)
-			lambdaStat[i] = UPPER_BOUND;
-		else if (lambda[i] <= LAMBDA_MIN)
-			lambdaStat[i] = LOWER_BOUND;
-		else
-			lambdaStat[i] = FREE;
+	UINT R, D, N;
+	TrainDat *trDat;
+	double getDotProductXW(UINT i, UINT j) {
+		double dotProduct = 0;
+		FeatType *F = X[i].F;
+		for(UINT ind = 0; ind < X[i].numFeats; ind++) {
+			double wfVal = W[j][F[ind].fNum];
+			if(wfVal != 0)
+				dotProduct += wfVal*F[ind].fVal;
+		}
+		return dotProduct;
 	}
 
-	bool is_upper_bound(int i) {
-		return lambdaStat[i] == UPPER_BOUND;
+	double getDotProductW(UINT i, UINT j) {
+		double dotProduct = 0;
+		for(UINT fInd = 0; fInd < D; fInd++)
+			if (W[i][fInd] != 0 && W[j][fInd] != 0)
+				dotProduct += W[i][fInd]*W[j][fInd];
+		return dotProduct;
 	}
-	bool is_lower_bound(int i) {
-		return lambdaStat[i] == LOWER_BOUND;
+
+	void updateCacheW() {
+		for (UINT ind1 = 0; ind1 < R; ind1++) {
+			rpCache[ind1][ind1] = getDotProductW(ind1, ind1);
+			for (UINT ind2 = ind1; ind2 > 0; ind2--) {
+				UINT ind2u = ind2 - 1;
+				rpCache[ind2u][ind1] = getDotProductW(ind1, ind2u);
+				rpCache[ind1][ind2u] = rpCache[ind2u][ind1];
+			}
+		}
 	}
-	bool is_free(int i) {
-		return lambdaStat[i] == FREE;
-	}
-	int select_working_set(int &i, int &j);
+
+	double deriveHi(UINT hInd);
 protected:
-	double *xTz;
-	double ** rpCache;
-
+	double ** rpCache, **GM;
+	const double * const* W, * const*H;
+	UINT *index;
+	double *G, *xTz;
+	const DataVect* X;
 public:
-	DeriveAE(UINT numRp) {
-		index = new int[numRp];
-		G = new double[numRp];
-		lambdaStat = new char[numRp];
-		for(UINT i = 0; i< numRp; i++)
-			index[i] = i;
-		xTz = NULL;
-		rpCache = NULL;
-		lambda = NULL;
-		rpSize = 0;
+	DeriveAE(TrainDat *trDat) {
+		this->trDat = trDat;
+		R = trDat->getR();
+		N = trDat->getN();
+		D = trDat->getD();
+		W = trDat->WC;
+		H = trDat->HC;
+		X = trDat->XC;
+
+		G = new double[R];
+		xTz = new double[R];
+		index = new UINT[R];
+		rpCache = new double*[R]; // size RxR to store hTh
+		GM = new double*[R];	//gradient matrix RxD
+		for (UINT ind = 0; ind < R; ind++) {
+			index[ind] = ind;
+			rpCache[ind] = new double[R];
+			GM[ind] = new double[D];
+		}
+
 	}
 
 	~DeriveAE() {
-		delete[] index;
-		delete[] lambdaStat;
-		delete[]G;
+		for (UINT ind = 0; ind < R; ind++) {
+			delete[] rpCache[ind];
+			delete[] GM[ind];
+		}
+		delete [] rpCache;
+		delete [] GM;
+		delete [] index;
+		delete [] G;
+		delete [] xTz;
 	}
-	void deriveAE(UINT rpSize, double *lambda);
-	void deriveAE2(UINT rpSize, double *lambda);
-	double getRepErr(UINT rpSize, double xNorm, double *lambda);
+
+
+	double deriveW();
+	double deriveH();
 };
 
 
