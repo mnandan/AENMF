@@ -69,6 +69,7 @@ void GetFact::getWinit() {
 	delete[] X2;
 	delete[] distVals;
 	delete[] clustEndInd;
+	trDat->copyXW();
 }
 
 

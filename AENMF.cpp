@@ -49,7 +49,6 @@ int main(int argc, char *argv[]) {
 	GetFact fact(&trDat);
 // Compute initial W and H matrices
 	fact.getWinit();
-	trDat.copyXW();
 	fact.getH();
 	//cout << trDat.calcNorm()<< " iter "<<0<<endl;
 	double prevNorm = INF, frobNorm;
