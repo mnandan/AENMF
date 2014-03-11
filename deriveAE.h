@@ -93,7 +93,7 @@ public:
 
 	double deriveW();
 	double deriveH();
-	double getRepErr(UINT rpSize, double xNorm, double *lambda);
+	double getRepErr(UINT rpSize, double xNorm, double *lambda, UINT hInd);
 };
 
 

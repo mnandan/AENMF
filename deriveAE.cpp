@@ -181,13 +181,13 @@ double DeriveAE::deriveHi(UINT hInd) {
 	return normSum;
 }
 
-double DeriveAE::getRepErr(UINT rpSize, double xNorm, double *lambda) {
+double DeriveAE::getRepErr(UINT rpSize, double xNorm, double *lambda, UINT hInd) {
 	// initialize
 	double PG, Gmax, Gmin;
 	double GmaxOld = INF, GminOld = -INF;
 	UINT activeSize = rpSize;
 	for (UINT i = 0; i < rpSize; i++) {
-		G[i] = -xTz[i];
+		G[i] = -H[hInd][i];
 		lambda[i] = 0;
 		index[i] = i;
 	}
@@ -220,7 +220,7 @@ double DeriveAE::getRepErr(UINT rpSize, double xNorm, double *lambda) {
 				double delta = lambdaNew - lambda[vI];
 				lambda[vI] = lambdaNew;
 				for (UINT k = 0; k < rpSize; k++)
-					G[k] += rpCache[min(vI, (UINT) k)][max(vI, (UINT) k)] * delta;
+					G[k] += rpCache[vI][k] * delta;
 
 			}
 			Gmax = max(Gmax, PG);
@@ -248,6 +248,6 @@ double DeriveAE::getRepErr(UINT rpSize, double xNorm, double *lambda) {
 	double normSum = xNorm;
 	for(UINT i = 0; i < rpSize; i++)
 		if(lambda[i] != 0)
-			normSum += (G[i] - xTz[i])*lambda[i];
+			normSum += (G[i] - H[hInd][i])*lambda[i];
 	return normSum;
 }

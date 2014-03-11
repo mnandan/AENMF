@@ -93,17 +93,20 @@ using namespace std;
 
 void GetFact::getWinit() {
 	double *lambda = new double[R];
+	UINT *origInd = new UINT [N];
 	UINT maxNormInd = 0;
 	double maxDistVal = -INF;
 	UINT rpInd = 0;
 	// find max norm vect: x1
 	for (UINT vI = 0; vI < N; vI++) {
+		origInd[vI] = vI;
 		if (X[vI].nrm > maxDistVal) {
 			maxNormInd = vI;
 			maxDistVal = X[vI].nrm;
 		}
 	}
 	trDat->swapX(rpInd, maxNormInd);
+	swap(origInd[0], origInd[maxNormInd]);
 	rpInd++;
 	// find max norm from x1: x2
 	UINT maxNormInd2 = 0;
@@ -119,25 +122,35 @@ void GetFact::getWinit() {
 	rpCache[0][0] = X[0].nrm;
 	rpCache[1][1] = X[1].nrm;
 	rpCache[0][1] = (rpCache[0][0] + rpCache[1][1] - maxDistVal2 ) / 2.0;
+	swap(origInd[1], origInd[maxNormInd2]);
 	// find remaining R - rpInd vectors based on distance from polygon formed by
 	// the selected rpInd vectors
+	// using H matrix to store dot products temporarily
+	for (UINT ind = 2; ind < N; ind++) {
+		for (UINT ind2 = 0; ind2 < 2; ind2++)
+			trDat->putHval(origInd[ind],ind2,getDotProductX(ind2, ind));
+	}
 	for (rpInd = 2; rpInd < min(N,R); rpInd++) {
 		maxNormInd = 0;
 		maxDistVal = -INF;
 		for (UINT ind = rpInd; ind < N; ind++) {
-			for (UINT rpInd2 = 0; rpInd2 < rpInd; rpInd2++)
-				xTz[rpInd2] = getDotProductX(rpInd2, ind);
-			double rep_err = getRepErr(rpInd, X[ind].nrm, lambda);
+			double rep_err = getRepErr(rpInd, X[ind].nrm, lambda, origInd[ind]);
 			if (rep_err > maxDistVal) {
 				maxNormInd = ind;
 				maxDistVal = rep_err;
 			}
 		}
 		trDat->swapX(rpInd, maxNormInd);
-		if(rpInd < min(N,R) - 1)
+		swap(origInd[rpInd],origInd[maxNormInd]);
+		if(rpInd < min(N,R) - 1) {
 			updateCacheX(0, rpInd);
+			for (UINT ind = rpInd + 1; ind < N; ind++)
+				trDat->putHval(origInd[ind],rpInd,getDotProductX(rpInd, ind));
+		}
 	}
 	trDat->copyXW();
+	trDat->clearH();
+	delete [] origInd;
 	delete [] lambda;
 }
 
