@@ -138,6 +138,7 @@ void GetFact::getWinit() {
 			trDat->putHval(origInd[ind],ind2,getDotProductX(ind2, ind));
 	}
 	maxDistVal = maxDistVal2;
+	sort(dVals.begin() + 2, dVals.end(), dValComp);
 	for (rpInd = 2; rpInd < min(N,R); rpInd++) {
 		maxNormInd = 0;
 		UINT dInd;
