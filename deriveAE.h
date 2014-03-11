@@ -12,7 +12,7 @@
 
 #define TAU 1e-12
 #define LAMBDA_MAX 1.0
-#define LAMBDA_MIN 0
+#define LAMBDA_MIN 0.0
 
 class DeriveAE {
 	double getDotProductXW(UINT i, UINT j) {
@@ -45,7 +45,32 @@ class DeriveAE {
 		}
 	}
 
+	enum {
+		LOWER_BOUND, UPPER_BOUND, FREE
+	};
+	char *lambdaStat; // LOWER_BOUND, UPPER_BOUND, FREE
+	double *lambda;
+	void update_lambdaStat(UINT i) {
+		if (lambda[i] >= LAMBDA_MAX)
+			lambdaStat[i] = UPPER_BOUND;
+		else if (lambda[i] <= LAMBDA_MIN)
+			lambdaStat[i] = LOWER_BOUND;
+		else
+			lambdaStat[i] = FREE;
+	}
+
+	bool is_upper_bound(UINT i) {
+		return lambdaStat[i] == UPPER_BOUND;
+	}
+	bool is_lower_bound(UINT i) {
+		return lambdaStat[i] == LOWER_BOUND;
+	}
+	bool is_free(UINT i) {
+		return lambdaStat[i] == FREE;
+	}
+
 	double deriveHi(UINT hInd);
+	bool select_working_set(UINT &out_i, UINT &out_j);
 protected:
 	double ** rpCache, **GM;
 	const double * const* W, * const*H;
@@ -55,6 +80,7 @@ protected:
 	UINT R, D, N;
 	TrainDat *trDat;
 
+	UINT rpSize;
 public:
 	DeriveAE(TrainDat *trDat) {
 		this->trDat = trDat;
@@ -65,6 +91,9 @@ public:
 		H = trDat->HC;
 		X = trDat->XC;
 
+		rpSize = 0;
+		lambda = new double[R];
+		lambdaStat = new char[R];
 		G = new double[R];
 		xTz = new double[R];
 		index = new UINT[R];
@@ -88,12 +117,14 @@ public:
 		delete [] index;
 		delete [] G;
 		delete [] xTz;
+		delete [] lambda;
+		delete [] lambdaStat;
 	}
 
 
 	double deriveW();
 	double deriveH();
-	double getRepErr(UINT rpSize, double xNorm, double *lambda, UINT hInd);
+	double getRepErr(double xNorm, UINT hInd);
 };
 
 

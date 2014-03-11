@@ -37,7 +37,7 @@ class GetFact: public DeriveAE{
 			rpCache[indAdd][ind - 1] = rpCache[ind - 1][indAdd];
 		}
 	}
-
+	static bool dValComp (DistDat i,DistDat j) { return (i.dist > j.dist); }
 public:
 	GetFact(TrainDat *trDat): DeriveAE(trDat) {
 		;

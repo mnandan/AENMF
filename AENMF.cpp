@@ -29,9 +29,9 @@ int main(int argc, char *argv[]) {
 		cerr<<"AENMF N R D inputFile wFile hFile\n";
 		exit(1);
 	}
-	UINT N = strtol(argv[1], NULL, 10);
-	UINT R = strtol(argv[2], NULL, 10);
-	UINT D = strtol(argv[3], NULL, 10);
+	UINT N = (UINT)strtol(argv[1], NULL, 10);
+	UINT R = (UINT)strtol(argv[2], NULL, 10);
+	UINT D = (UINT)strtol(argv[3], NULL, 10);
 	strcpy(inpFname, argv[4]);
 	strcpy(wFname, argv[5]);
 	strcpy(hFname, argv[6]);

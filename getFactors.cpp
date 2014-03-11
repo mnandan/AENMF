@@ -92,14 +92,19 @@ using namespace std;
 //}
 
 void GetFact::getWinit() {
-	double *lambda = new double[R];
 	UINT *origInd = new UINT [N];
+	vector <DistDat> dVals;
 	UINT maxNormInd = 0;
 	double maxDistVal = -INF;
 	UINT rpInd = 0;
-	// find max norm vect: x1
+
 	for (UINT vI = 0; vI < N; vI++) {
+		DistDat temp;
+		temp.dist = INF;
+		temp.ind = vI;
+		dVals.push_back(temp);
 		origInd[vI] = vI;
+		// find max norm vect: x1
 		if (X[vI].nrm > maxDistVal) {
 			maxNormInd = vI;
 			maxDistVal = X[vI].nrm;
@@ -113,6 +118,7 @@ void GetFact::getWinit() {
 	double maxDistVal2 = -INF;
 	for (UINT ind = rpInd; ind < N; ind++) {
 		double curr_dist = X[ind].nrm + maxDistVal - 2 * getDotProductX(0, ind);
+		dVals[ind].dist = curr_dist;
 		if (curr_dist > maxDistVal2) {
 			maxNormInd2 = ind;
 			maxDistVal2 = curr_dist ;
@@ -123,6 +129,7 @@ void GetFact::getWinit() {
 	rpCache[1][1] = X[1].nrm;
 	rpCache[0][1] = (rpCache[0][0] + rpCache[1][1] - maxDistVal2 ) / 2.0;
 	swap(origInd[1], origInd[maxNormInd2]);
+	dVals[maxNormInd2].dist = dVals[1].dist;
 	// find remaining R - rpInd vectors based on distance from polygon formed by
 	// the selected rpInd vectors
 	// using H matrix to store dot products temporarily
@@ -130,18 +137,28 @@ void GetFact::getWinit() {
 		for (UINT ind2 = 0; ind2 < 2; ind2++)
 			trDat->putHval(origInd[ind],ind2,getDotProductX(ind2, ind));
 	}
+	maxDistVal = maxDistVal2;
 	for (rpInd = 2; rpInd < min(N,R); rpInd++) {
 		maxNormInd = 0;
-		maxDistVal = -INF;
-		for (UINT ind = rpInd; ind < N; ind++) {
-			double rep_err = getRepErr(rpInd, X[ind].nrm, lambda, origInd[ind]);
+		UINT dInd;
+		rpSize = rpInd;		//size is ind+1, which is correct here
+		for (dInd = rpInd; dInd < N; dInd++) {
+			if(maxDistVal > dVals[dInd].dist)
+				break;
+			UINT ind = dVals[dInd].ind;
+			double rep_err = getRepErr(X[ind].nrm, origInd[ind]);
+			dVals[dInd].dist = rep_err;
 			if (rep_err > maxDistVal) {
 				maxNormInd = ind;
 				maxDistVal = rep_err;
+				maxNormInd2 = dInd;
 			}
 		}
 		trDat->swapX(rpInd, maxNormInd);
 		swap(origInd[rpInd],origInd[maxNormInd]);
+		dVals[maxNormInd2].dist = INF;
+		dVals[maxNormInd2].ind = maxNormInd;
+		sort(dVals.begin() + rpInd, dVals.begin() + dInd, dValComp);
 		if(rpInd < min(N,R) - 1) {
 			updateCacheX(0, rpInd);
 			for (UINT ind = rpInd + 1; ind < N; ind++)
@@ -151,7 +168,6 @@ void GetFact::getWinit() {
 	trDat->copyXW();
 	trDat->clearH();
 	delete [] origInd;
-	delete [] lambda;
 }
 
 
