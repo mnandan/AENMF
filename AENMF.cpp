@@ -43,6 +43,8 @@ int main(int argc, char *argv[]) {
 	double frobNorm = fact.getH();
 	if(pars.verbose)
 		std::cout << "Initial reconstruction error = "<<frobNorm<<std::endl;
+	else
+		std::cout << "Computing factors ";
 // Perform ALS till convergence criteria is met
 	double prevNorm;
 	UINT iter = 1;
@@ -53,14 +55,14 @@ int main(int argc, char *argv[]) {
 		if(pars.verbose)
 			std::cout << "\titeration "<< iter <<": reconstruction error = " \
 			          <<frobNorm<<std::endl;
-		else if(iter%10 == 0)
+		else if(iter%5 == 0)
 			std::cout<<'.';
 		// check if convergence criteria is met
 		if(fabs(prevNorm - frobNorm) < 0.01)
 			break;
 		iter++;
 	}
-	if(!pars.verbose && iter > 10)
+	if(!pars.verbose && iter > 5)
 		std::cout << std::endl;    // for pretty display after '.'
 // Compute time taken and write output files
 	double cpuTimeTaken = difftime(clock(), begin) / CLOCKS_PER_SEC;

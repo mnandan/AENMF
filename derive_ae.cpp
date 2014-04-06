@@ -11,22 +11,21 @@
 #include <cmath>
 #include <algorithm>
 #include "derive_ae.h"
+#include <iostream>
 
 using namespace std;
 void DeriveAEW::getW() {
 	std::vector <UINT> origInd;
 	std::vector <DistDat> dVals;
+	std::vector <DistDat>::iterator dvt;
+
 	UINT maxNormInd = 0;
 	double maxDistVal = -INF;
 	UINT rpInd = 0;
-
 	DistDat temp;
-	origInd.assign(N,0);
 	for (UINT vI = 0; vI < N; vI++) {
-		temp.dist = INF;
-		temp.ind = vI;
 		dVals.push_back(temp);
-		origInd[vI] = vI;
+		origInd.push_back(vI);
 		// find max norm vect: x1
 		if (X[vI].nrm > maxDistVal) {
 			maxNormInd = vI;
@@ -39,6 +38,7 @@ void DeriveAEW::getW() {
 	UINT maxNormInd2 = 0;
 	double maxDistVal2 = -INF;
 	for (UINT ind = rpInd; ind < N; ind++) {
+		dVals[ind].ind = ind;
 		if(X[ind].nrm > 0) {
 			double curr_dist = X[ind].nrm + maxDistVal - \
 					2 * getDotProduct(X[0].F, X[ind].F);
@@ -54,15 +54,14 @@ void DeriveAEW::getW() {
 	dat.swapX(rpInd, maxNormInd2);
 	updateCacheX(0);
 	updateCacheX(1);
-	dVals[maxNormInd2].dist = dVals[1].dist;
-	dVals[1].dist = -INF;
+	dVals[maxNormInd2].dist = dVals[rpInd].dist;
 	// find remaining R - rpInd vectors based on distance from polygon formed by
 	// the selected rpInd vectors
 	// using H matrix to store dot products temporarily
-	for (UINT ind = 2; ind < N; ind++)
-		for (UINT ind2 = 0; ind2 < 2; ind2++)
-			dat.putHval(ind, ind2, getDotProduct(X[ind].F, X[ind2].F));
-
+	for (UINT ind = 2; ind < N; ind++) {
+		dat.putHval(ind, 0, getDotProduct(X[ind].F, X[0].F));
+		dat.putHval(ind, 1, getDotProduct(X[ind].F, X[1].F));
+	}
 	sort(dVals.begin() + 2, dVals.end(), dValComp);
 	for (rpInd = 2; rpInd < std::min(N,R); rpInd++) {
 		maxNormInd = 0;
@@ -70,11 +69,14 @@ void DeriveAEW::getW() {
 		rpSize = rpInd;
 		maxDistVal = -INF;
 		for (dInd = rpInd; dInd < N; dInd++) {
-			if(maxDistVal - dVals[dInd].dist > 1e-6)
+			UINT ind = dVals[dInd].ind;
+			if(ind < rpInd)
+				continue;
+			if(maxDistVal - dVals[dInd].dist > 1e-6 && maxNormInd != 0)
 				break;
 			//ind order is different due to sorting
-			UINT ind = dVals[dInd].ind;
-			double rep_err = getRepErr(X[ind].nrm, origInd[ind]);
+			UINT hInd = origInd[ind];
+			double rep_err = getRepErr(X[ind].nrm, hInd);
 			dVals[dInd].dist = rep_err;
 			if (rep_err > maxDistVal) {
 				maxNormInd = ind;
@@ -83,10 +85,12 @@ void DeriveAEW::getW() {
 			}
 		}
 		dat.swapX(rpInd, maxNormInd);
-		std::swap(origInd[rpInd],origInd[maxNormInd]);
-		dVals[maxNormInd2].dist = dVals[rpInd].dist;
-		dVals[maxNormInd2].ind = maxNormInd;
-		sort(dVals.begin() + (rpInd + 1), dVals.begin() + dInd, dValComp);
+//		std::cout<<rpInd<<"\t"<<X[rpInd].index<<"\t"<<maxDistVal<<std::endl;
+		dVals[maxNormInd2].dist = INF;
+		std::swap(origInd[rpInd], origInd[maxNormInd]);
+//		dvt = std::lower_bound (dVals.begin()+dInd, v.end(), 20); //          ^
+//		up = std::upper_bound (v.begin(), v.end(), 20); //
+		sort(dVals.begin() + rpInd + 1, dVals.end(), dValComp);
 		if(rpInd < std::min(N,R) - 1) {
 			updateCacheX(rpInd);
 			for (UINT ind = rpInd + 1; ind < N; ind++)
@@ -130,7 +134,8 @@ bool DeriveAEW::select_working_set(UINT &out_i, UINT &out_j) {
 				Gmax2 = G[j];
 			if (grad_diff > 0) {
 				double obj_diff;
-				double quad_coef = rpCache[i][i] + rpCache[j][j] - 2 * rpCache[i][j];
+				double quad_coef = rpCache[i][i] + rpCache[j][j] \
+				                    - 2*rpCache[i][j];
 				obj_diff = -(grad_diff * grad_diff) / quad_coef;
 				if (obj_diff <= obj_diff_min) {
 					Gmin_idx = j;
@@ -140,7 +145,7 @@ bool DeriveAEW::select_working_set(UINT &out_i, UINT &out_j) {
 		}
 	}
 
-	if (Gmax + Gmax2 < 0.001)		//converged
+	if (Gmax + Gmax2 < 0.0001)		//converged
 		return false;
 
 	out_i = Gmax_idx;

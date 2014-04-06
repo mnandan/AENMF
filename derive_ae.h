@@ -22,12 +22,12 @@ enum {
 };
 
 class DeriveAEW: public DataHandler {
-	std::vector <char> lambdaStat;
+	std::vector <int> lambdaStat;
 	DenseVect G, lambda;
 	UINT rpSize;
 	// to sort distance in getWinit
 	static bool dValComp (DistDat i,DistDat j) {
-		return (i.dist > j.dist);
+		return (i.dist >= j.dist);
 	}
 	bool isUpperBound(UINT i) {
 		return (lambdaStat[i] == UPPER_BOUND);
@@ -41,9 +41,9 @@ class DeriveAEW: public DataHandler {
 public:
 	DeriveAEW(AllData &dat_): DataHandler(dat_) {
 // initialize data containers
-		lambda.resize(R);    // 1xD vector
-		G.resize(R);    // 1xR vector
-		lambdaStat.resize(R);
+		lambda.resize(R,0);    // 1xD vector
+		G.resize(R,0);    // 1xR vector
+		lambdaStat.resize(R,0);
 		rpSize = 0;
 	}
 	void getW();

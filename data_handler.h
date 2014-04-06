@@ -86,10 +86,10 @@ double inline DataHandler::getDotProduct(DenseVect const &e, FeatVect const &d) 
 
 void inline DataHandler::updateCacheX(UINT indAdd) {
 	rpCache[indAdd][indAdd] = dat.XV[indAdd].nrm;
-	for (UINT ind = indAdd; ind > 0; ind--) {
-		rpCache[ind - 1][indAdd] = getDotProduct(dat.XV[indAdd].F,
-				                                 dat.XV[ind - 1].F);
-		rpCache[indAdd][ind - 1] = rpCache[ind - 1][indAdd];
+	for (UINT i = indAdd; i > 0; i--) {
+		UINT ind = i;
+		rpCache[ind][indAdd] = getDotProduct(dat.XV[indAdd].F,dat.XV[ind].F);
+		rpCache[indAdd][ind] = rpCache[ind][indAdd];
 	}
 }
 
