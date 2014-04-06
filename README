@@ -1,5 +1,13 @@
 Fast NMF solver: version 0
 --------------------
 
-Find non-negative factors W and H, of a non-negative matrix F so that || F - WH || (frobineus norm) is minimized. A new algorithm similar to the algorithm used in Nandan et al. 2014 (JMLR) is used.
+Find non-negative factors W and H, of a non-negative matrix F so that || F - WH || (frobineus norm) is minimized. A new algorithm similar to the algorithm used in Nandan et al. 2014 (JMLR) is used. 
 
+Instructions:
+
+1. Run make to compile.
+2. Call as $ ./AENMF N R D <input file in LibSVM format with F> <desired file for W> <desired file for H>
+e.g., $ ./AENMF 60000 100 780 ../data/mnist w.dat h.dat
+
+3. The output files are also in LibSVM/SVMlight format.
+4. The Frobenius norm error of each iteration is displayed.
