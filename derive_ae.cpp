@@ -17,7 +17,7 @@ using namespace std;
 void DeriveAEW::getW() {
 	std::vector <UINT> origInd;
 	std::vector <DistDat> dVals;
-	std::vector <DistDat>::iterator dvt;
+	std::vector <DistDat>::iterator dvi;
 
 	UINT maxNormInd = 0;
 	double maxDistVal = -INF;
@@ -63,16 +63,18 @@ void DeriveAEW::getW() {
 		dat.putHval(ind, 1, getDotProduct(X[ind].F, X[1].F));
 	}
 	sort(dVals.begin() + 2, dVals.end(), dValComp);
+	double minDistVal;
 	for (rpInd = 2; rpInd < std::min(N,R); rpInd++) {
 		maxNormInd = 0;
 		UINT dInd;
 		rpSize = rpInd;
 		maxDistVal = -INF;
+		minDistVal = INF;
 		for (dInd = rpInd; dInd < N; dInd++) {
 			UINT ind = dVals[dInd].ind;
 			if(ind < rpInd)
 				continue;
-			if(maxDistVal - dVals[dInd].dist > 1e-6 && maxNormInd != 0)
+			if(maxDistVal - dVals[dInd].dist > FLOAT_ZERO && maxNormInd != 0)
 				break;
 			//ind order is different due to sorting
 			UINT hInd = origInd[ind];
@@ -82,15 +84,23 @@ void DeriveAEW::getW() {
 				maxNormInd = ind;
 				maxDistVal = rep_err;
 				maxNormInd2 = dInd;
+			} else if (rep_err < minDistVal) {
+				minDistVal = rep_err;
 			}
 		}
 		dat.swapX(rpInd, maxNormInd);
 //		std::cout<<rpInd<<"\t"<<X[rpInd].index<<"\t"<<maxDistVal<<std::endl;
 		dVals[maxNormInd2].dist = INF;
 		std::swap(origInd[rpInd], origInd[maxNormInd]);
-//		dvt = std::lower_bound (dVals.begin()+dInd, v.end(), 20); //          ^
-//		up = std::upper_bound (v.begin(), v.end(), 20); //
-		sort(dVals.begin() + rpInd + 1, dVals.end(), dValComp);
+		if(dInd < N && minDistVal > FLOAT_ZERO) {
+			for(dvi = dVals.begin() + dInd; dvi != dVals.end(); dvi++) {
+				if(minDistVal > dvi->dist)
+					break;
+			}
+			sort(dVals.begin() + rpInd + 1, dvi, dValComp);
+		} else {
+			sort(dVals.begin() + rpInd + 1, dVals.end(), dValComp);
+		}
 		if(rpInd < std::min(N,R) - 1) {
 			updateCacheX(rpInd);
 			for (UINT ind = rpInd + 1; ind < N; ind++)
@@ -145,7 +155,7 @@ bool DeriveAEW::select_working_set(UINT &out_i, UINT &out_j) {
 		}
 	}
 
-	if (Gmax + Gmax2 < 0.0001)		//converged
+	if (Gmax + Gmax2 < DERIVE_AE_EPS)		//converged
 		return false;
 
 	out_i = Gmax_idx;
@@ -177,7 +187,7 @@ double DeriveAEW::getRepErr(double xNorm, UINT hInd) {
 		double oldLj = lambda[j];
 		double quad_coef = rpCache[i][i] + rpCache[j][j] - 2 * rpCache[i][j];
 		if (quad_coef <= 0)
-			quad_coef = TAU;
+			quad_coef = FLOAT_ZERO;
 		double delta = (G[i] - G[j]) / quad_coef;
 		double sum = lambda[i] + lambda[j];
 		lambda[i] -= delta;
