@@ -35,7 +35,7 @@ public:
 		for(UINT i = 0; i < size; i++)
 			delete [] M[i].F;
 	}
-	void addVect(std::vector<FeatType> const &F);
+	void addVect(std::vector<FeatType> const &F, UINT featInd);
 };
 
 #endif /* SPARSE_MAT_H_ */

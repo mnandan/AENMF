@@ -110,9 +110,9 @@ double GetFact::getH() {
 	for (UINT ind = 0; ind < N; ind++) {
 		for (UINT rpInd2 = 0; rpInd2 < R; rpInd2++)
 			xTz[rpInd2] = getDotProduct(X[ind].F, X[ind].fSize, W[rpInd2]);
-		double norm = deriveHi(ind);
+//		double norm = deriveHi(ind);
 //		std::cout<<norm<<"\t"<<X[ind].nrm<<"\n";
-		frobNormSq += norm;
+		frobNormSq += deriveHi(ind);
 	}
 	return sqrt(frobNormSq);
 }
@@ -197,8 +197,8 @@ double GetFact::deriveHi(UINT hInd) {
 //			} else
 //				PG = G[vI];
 //
-//			if (fabs(PG) > TAU) {
-//				double gVal = PG/(REG_PARAM + rpCache[vI][vI]);
+//			if (fabs(PG) > FLOAT_ZERO) {
+//				double gVal = PG/(REG_PARAM_H + rpCache[vI][vI]);
 //				double lambda2 = std::max(H[hInd][vI] - gVal, LAMBDA_MIN_MF);
 //				double delta = lambda2 - H[hInd][vI];
 //				if(delta != 0) {

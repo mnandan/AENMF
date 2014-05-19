@@ -38,9 +38,9 @@ public:
 	void swapX(UINT i, UINT j) {
 		std::swap(X_.M[i], X_.M[j]);
 	}
-	void addXi(std::vector<FeatType> const &F) {
+	void addXi(std::vector<FeatType> const &F, UINT featInd) {
 		N_++;
-		X_.addVect(F);
+		X_.addVect(F, featInd);
 	}
 
 	void initWH(UINT Dval) {
