@@ -12,11 +12,13 @@
 #include "get_factors.h"
 
 
-double GetFact::getW( ) {
+void GetFact::initWdata() {
 	for (UINT ind = 0; ind < R; ind++) {
 		index[ind] = ind;
-		std::fill(rpCache[ind].begin(), rpCache[ind].end(), 0);
-		std::fill(GM[ind].begin(), GM[ind].end(), 0);
+		for (UINT ind2 = 0; ind2 < R; ind2++)
+			rpCache[ind][ind2] = 0;
+		for (UINT ind2 = 0; ind2 < D; ind2++)
+			GM[ind][ind2] = 0;
 	}
 	UINT xFnum;
 	double tempH;
@@ -32,7 +34,7 @@ double GetFact::getW( ) {
 			}
 		}
 		FeatVect const &F = X[ind].F;
-		xFnum = F.size();
+		xFnum = X[ind].fSize;
 		if(ind < R) {
 			for (UINT fInd = 0; fInd < xFnum; fInd++) {
 				GM[ind][F[fInd].fNum] -= REG_PARAM_W*F[fInd].fVal;
@@ -40,7 +42,7 @@ double GetFact::getW( ) {
 					GM[ind2][F[fInd].fNum] -= H[ind][ind2]*F[fInd].fVal;
 				}
 			}
-			if(REG_PARAM_W > 0.0)
+			if(REG_PARAM_W > 0)
 				for (UINT fInd = 0; fInd < D; fInd++)
 					GM[ind][fInd] += REG_PARAM_W*W[ind][fInd];
 		} else {
@@ -55,7 +57,10 @@ double GetFact::getW( ) {
 		for (UINT fInd = 0; fInd < D; fInd++)
 			for (UINT ind2 = 0; ind2 < R; ind2++)
 				GM[ind][fInd] += rpCache[ind][ind2]*W[ind2][fInd];
+}
 
+double GetFact::getW( ) {
+	initWdata();
 	// optimization step
 	double gPod, lambdaNew, delta, gradSum, prevGradSum = INF;
 	UINT iter = 0;
@@ -104,8 +109,10 @@ double GetFact::getH() {
 	double frobNormSq = 0;
 	for (UINT ind = 0; ind < N; ind++) {
 		for (UINT rpInd2 = 0; rpInd2 < R; rpInd2++)
-			xTz[rpInd2] = getDotProduct(X[ind].F, W[rpInd2]);
-		frobNormSq += deriveHi(ind);
+			xTz[rpInd2] = getDotProduct(X[ind].F, X[ind].fSize, W[rpInd2]);
+		double norm = deriveHi(ind);
+//		std::cout<<norm<<"\t"<<X[ind].nrm<<"\n";
+		frobNormSq += norm;
 	}
 	return sqrt(frobNormSq);
 }

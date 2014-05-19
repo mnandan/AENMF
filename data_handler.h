@@ -18,42 +18,38 @@ protected:
 	AllData &dat;
 	UINT N,R,D;
 	std::vector <SparseVect> const &X;
-	std::vector <DenseVect>  const &W;
-	std::vector <DenseVect>  const &H;
-	std::vector <DenseVect> rpCache;
+	DenseVect * const &H;
+	DenseVect * const &W;
+	DenseVect * rpCache;
 //inline functions
 	void updateCacheW();
 	void updateCacheX(UINT indAdd);
 	double getDotProduct(DenseVect const &d, DenseVect const &e);
-	double getDotProduct(FeatVect const &d, FeatVect const &e);
-	double getDotProduct(FeatVect const &d, DenseVect const &e);
-	double getDotProduct(DenseVect const &e, FeatVect const &d);
+	double getDotProduct(FeatVect const &d, UINT dSize, FeatVect const &e, UINT eSize);
+	double getDotProduct(FeatVect const &d, UINT dSize, DenseVect const &e);
 public:
-	DataHandler(AllData &d1): dat(d1), X(d1.XV), W(d1.WV), H(d1.HV){
-		//std::assert(dat.D > 0);
-// copy references from dat
-		R = dat.R;
-		N = dat.N;
-		D = dat.D;
-		DenseVect temp;
-		temp.assign(R,0);
-		rpCache.assign(R,temp);    // RxR matrix
+	DataHandler(AllData &d1): dat(d1), N(d1.N), R(d1.R), D(d1.D), X(d1.XV), H(d1.HV), W(d1.WV) {
+		assert(D > 0);
+		rpCache = new DenseVect[R];
+		for(UINT i = 0; i < R; i++) {
+			rpCache[i] = new DenseType[R];    // RxR matrix
+//			for(UINT j = 0; j < R; j++)
+//				rpCache[i][j] = 0;
+		}
 	}
 };
 
 double inline DataHandler::getDotProduct(DenseVect const &d, DenseVect const &e) {
 	double dotProduct = 0;
-	UINT fSize = d.size();
-//		std::assert(d.size() == e.size());
+	UINT fSize = D;
 	for(UINT fInd = 0; fInd < fSize; fInd++)
 		if (d[fInd] != 0 && e[fInd] != 0)
 			dotProduct += d[fInd]*e[fInd];
 	return dotProduct;
 }
 
-double inline DataHandler::getDotProduct(FeatVect const &d, FeatVect const &e) {
+double inline DataHandler::getDotProduct(FeatVect const &d, UINT dSize, FeatVect const &e, UINT eSize) {
 	double dotProduct = 0;
-	UINT dSize = d.size(), eSize = e.size();
 	UINT df = 0, ef = 0;
 	while (df < dSize && ef < eSize) {
 		if (d[df].fNum == e[ef].fNum) {
@@ -68,11 +64,10 @@ double inline DataHandler::getDotProduct(FeatVect const &d, FeatVect const &e) {
 	return dotProduct;
 }
 
-double inline DataHandler::getDotProduct(FeatVect const &d, DenseVect const &e) {
+double inline DataHandler::getDotProduct(FeatVect const &d, UINT dSize, DenseVect const &e) {
 	double dotProduct = 0;
-	UINT dSize = d.size();
-	//std::assert(d[dSize].fNum < e.size());
 	for(UINT df = 0; df < dSize; df++) {
+		assert(d[df].fNum < D);
 		double wfVal = e[d[df].fNum];
 		if(wfVal != 0)
 			dotProduct += wfVal*d[df].fVal;
@@ -80,15 +75,14 @@ double inline DataHandler::getDotProduct(FeatVect const &d, DenseVect const &e) 
 	return dotProduct;
 }
 
-double inline DataHandler::getDotProduct(DenseVect const &e, FeatVect const &d) {
-	return getDotProduct(d,e);
-}
+//double inline DataHandler::getDotProduct(DenseVect const &e, FeatVect const &d) {
+//}
 
 void inline DataHandler::updateCacheX(UINT indAdd) {
 	rpCache[indAdd][indAdd] = dat.XV[indAdd].nrm;
 	for (UINT i = indAdd; i > 0; i--) {
 		UINT ind = i;
-		rpCache[ind][indAdd] = getDotProduct(dat.XV[indAdd].F,dat.XV[ind].F);
+		rpCache[ind][indAdd] = getDotProduct(dat.XV[indAdd].F, dat.XV[indAdd].fSize, dat.XV[ind].F, dat.XV[ind].fSize);
 		rpCache[indAdd][ind] = rpCache[ind][indAdd];
 	}
 }

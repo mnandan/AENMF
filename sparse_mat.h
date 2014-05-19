@@ -16,19 +16,26 @@ struct FeatType {
 	double fVal;
 };
 
-typedef std::vector <FeatType> FeatVect;
+typedef FeatType* FeatVect;
 
 struct SparseVect {
 	UINT index; // index of vector in input file
+	UINT fSize;
 	double nrm; // norm of vector
-	std::vector <FeatType> F; // features
+	FeatVect F; // features
+	SparseVect(): index(0), fSize(0), nrm(0), F(NULL) {};
 };
 
-struct SparseMat {
-	std::vector <SparseVect> M;
+class SparseMat {
+public:
 	UINT size;
-	SparseMat(): size(0){}
-	void addVect(std::vector<FeatType> const &F, UINT featCnt);
+	std::vector <SparseVect> M;
+	SparseMat(): size(0) {};
+	~SparseMat() {
+		for(UINT i = 0; i < size; i++)
+			delete [] M[i].F;
+	}
+	void addVect(std::vector<FeatType> const &F);
 };
 
 #endif /* SPARSE_MAT_H_ */

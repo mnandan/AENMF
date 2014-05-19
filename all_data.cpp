@@ -10,7 +10,7 @@
 void AllData::copyXW() {	//initialize W matrix with the first R vectors in X
 	for(UINT i = 0; i< R; i++) {
 		const FeatVect &F = XV[i].F;
-		for(UINT j = 0; j < F.size(); j++)
+		for(UINT j = 0; j < XV[i].fSize; j++)
 			putWval(i, F[j].fNum, F[j].fVal);
 	}
 }
@@ -41,7 +41,6 @@ double AllData::calcNorm() {
 	for(UINT j = 0;j < D;j++)
 		hwVect.push_back(0);
 
-	std::vector <FeatType>::const_iterator t,e;
 	for(UINT i = 0;i < N;i++) {
 		for(UINT j = 0;j < D;j++)
 			hwVect[j] = 0;
@@ -50,13 +49,12 @@ double AllData::calcNorm() {
 				for(UINT k = 0;k < D;k++)
 					hwVect[k] += HV[i][j]*WV[j][k];
 		}
-		t = XV[i].F.begin();
-		e = XV[i].F.end();
+		UINT fSize = XV[i].fSize;
 		UINT prevFnum = 0;
-		for(; t!= e; t++) {
-			for(;prevFnum < t->fNum; prevFnum++)
+		for(UINT j = 0; j < fSize; j++) {
+			for(;prevFnum < XV[i].F[j].fNum; prevFnum++)
 				frobNorm += hwVect[prevFnum] * hwVect[prevFnum];
-			double val = t->fVal - hwVect[t->fNum];
+			double val = XV[i].F[j].fVal - hwVect[XV[i].F[j].fNum];
 			frobNorm += val*val;
 			prevFnum++;
 		}

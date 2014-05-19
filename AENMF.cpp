@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
 	DeriveAEW winit(dat);
 	// GetFact performs factorization of dat.X to W and H
 	GetFact fact(dat);
+
 // Compute initial W and H matrices
 	clock_t begin = clock();
 	winit.getW();
@@ -57,10 +58,10 @@ int main(int argc, char *argv[]) {
 			          <<frobNorm<<std::endl;
 		else if(iter%5 == 0)
 			std::cout<<'.';
+		iter++;
 		// check if convergence criteria is met
 		if(fabs(prevNorm - frobNorm) < 0.01)
 			break;
-		iter++;
 	}
 	if(!pars.verbose && iter > 5)
 		std::cout << std::endl;    // for pretty display after '.'

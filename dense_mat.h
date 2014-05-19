@@ -8,18 +8,24 @@
 #ifndef DENSE_MAT_H_
 #define DENSE_MAT_H_
 
-#include <vector>
 #include "common.h"
+#include <cassert>
 
-typedef std::vector <double> DenseVect;
+typedef double DenseType;
+typedef DenseType* DenseVect;
 
-struct DenseMat {
+class DenseMat {
+public:
 	UINT size1, size2;
-	std::vector <DenseVect>  M;
-	DenseMat(): size1(0), size2(0) {}
-
+	DenseVect* M;
+	DenseMat(): size1(0), size2(0), M(NULL) {};
+	~DenseMat() {
+		for(UINT i = 0; i < size1; i++)
+			delete M[i];
+		delete [] M;
+	}
 	void put(UINT i, UINT j, double val) {
-		//std::assert(size1 != 0 && size2 != 0);
+		assert(((i < size1) && (j < size2)));
 		M[i][j] = val;
 	}
 	void init(UINT i, UINT j);

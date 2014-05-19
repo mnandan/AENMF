@@ -108,7 +108,7 @@ bool FileInt:: procLine() {
 			}
 			++featInd;
 		}
-		dat.addXi(Ftemp, featInd);
+		dat.addXi(Ftemp);
 	}
 
 	if(xIN.good())

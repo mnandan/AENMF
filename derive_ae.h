@@ -7,6 +7,7 @@
 #ifndef DERIVE_AE_H_
 #define DERIVE_AE_H_
 
+#include <iostream>
 #include "common.h"
 #include "all_data.h"
 #include "data_handler.h"
@@ -22,12 +23,14 @@ enum {
 };
 
 class DeriveAEW: public DataHandler {
-	std::vector <int> lambdaStat;
-	DenseVect G, lambda;
+	UINT* lambdaStat;
+	UINT* origInd;
+	DenseVect G;
+	DenseVect lambda;
 	UINT rpSize;
 	// to sort distance in getWinit
 	static bool dValComp (DistDat i,DistDat j) {
-		return (i.dist >= j.dist);
+		return (i.dist - j.dist > FLOAT_ZERO);
 	}
 	bool isUpperBound(UINT i) {
 		return (lambdaStat[i] == UPPER_BOUND);
@@ -41,10 +44,20 @@ class DeriveAEW: public DataHandler {
 public:
 	DeriveAEW(AllData &dat_): DataHandler(dat_) {
 // initialize data containers
-		lambda.resize(R,0);    // 1xD vector
-		G.resize(R,0);    // 1xR vector
-		lambdaStat.resize(R,0);
+		lambda = new DenseType[R];    // 1xR vector
+		G = new DenseType[R];    // 1xR vector
+		lambdaStat = new UINT[R];
 		rpSize = 0;
+		origInd = new UINT[N];
+		for(UINT i = 0; i < N; i++) {
+			origInd[i] = i;
+		}
+	}
+	~DeriveAEW() {
+		delete [] lambda;
+		delete [] G;
+		delete [] lambdaStat;
+		delete [] origInd;
 	}
 	void getW();
 };

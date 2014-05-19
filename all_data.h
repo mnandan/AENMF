@@ -26,8 +26,8 @@ public:
 	UINT const &D;
 	UINT const &R;
 
-	std::vector <DenseVect>  const &WV;
-	std::vector <DenseVect>  const &HV;
+	DenseVect* const &WV;
+	DenseVect* const &HV;
 	std::vector <SparseVect> const &XV;
 
 	AllData(UINT Rval):
@@ -38,9 +38,9 @@ public:
 	void swapX(UINT i, UINT j) {
 		std::swap(X_.M[i], X_.M[j]);
 	}
-	void addXi(std::vector<FeatType> const &F, UINT featCnt) {
+	void addXi(std::vector<FeatType> const &F) {
 		N_++;
-		X_.addVect(F,featCnt);
+		X_.addVect(F);
 	}
 
 	void initWH(UINT Dval) {

@@ -14,19 +14,35 @@
 
 class GetFact: public DataHandler {
 	// all data variables
-	std::vector <DenseVect> GM;
-	DenseVect G, xTz, lambda;
-	std::vector <UINT> index;
+	DenseVect* GM;
+	DenseVect G, xTz;
+	UINT* index;
 	double deriveHi(UINT hInd);
 public:
 	GetFact(AllData &dat_): DataHandler(dat_) {
 // initialize data containers
-		lambda.assign(D,0);    // 1xD vector
-		GM.assign(R,lambda);    // RxD matrix
-		G.assign(R,0);    // 1xR vector
-		xTz.assign(R,0);    // 1xR vector
-		index.assign(R,0);    // 1xR vector
+		G = new DenseType[R];    // 1xR vector
+		xTz = new DenseType[R];    // 1xR vector
+		index = new UINT[R];    // 1xR vector
+		GM = new DenseVect[R];    // RxD matrix
+		for(UINT i = 0; i < R; i++) {
+			GM[i] = new DenseType[D];
+//			G[i] = 0;
+//			xTz[i] = 0;
+//			index[i] = i;
+//			for(UINT j = 0; j < D; j++)
+//				GM[i][j] = 0;
+		}
 	}
+	~GetFact() {
+		delete [] G;
+		delete [] xTz;
+		delete [] index;
+		for(UINT i = 0; i < R; i++)
+			delete [] GM[i];
+		delete [] GM;
+	}
+	void initWdata();
 	double getH();
 	double getW();
 };

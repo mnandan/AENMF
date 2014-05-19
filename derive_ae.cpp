@@ -15,17 +15,10 @@
 
 using namespace std;
 void DeriveAEW::getW() {
-	std::vector <UINT> origInd;
-	std::vector <DistDat> dVals;
-	std::vector <DistDat>::iterator dvi;
-
 	UINT maxNormInd = 0;
 	double maxDistVal = -INF;
 	UINT rpInd = 0;
-	DistDat temp;
 	for (UINT vI = 0; vI < N; vI++) {
-		dVals.push_back(temp);
-		origInd.push_back(vI);
 		// find max norm vect: x1
 		if (X[vI].nrm > maxDistVal) {
 			maxNormInd = vI;
@@ -35,13 +28,15 @@ void DeriveAEW::getW() {
 	dat.swapX(rpInd, maxNormInd);
 	rpInd++;
 	// find max norm from x1: x2
+	std::vector<DistDat> dVals;
+	dVals.resize(N);
 	UINT maxNormInd2 = 0;
 	double maxDistVal2 = -INF;
 	for (UINT ind = rpInd; ind < N; ind++) {
 		dVals[ind].ind = ind;
 		if(X[ind].nrm > 0) {
 			double curr_dist = X[ind].nrm + maxDistVal - \
-					2 * getDotProduct(X[0].F, X[ind].F);
+					2 * getDotProduct(X[0].F,X[0].fSize, X[ind].F, X[ind].fSize);
 			if (curr_dist > maxDistVal2) {
 				maxNormInd2 = ind;
 				maxDistVal2 = curr_dist ;
@@ -59,8 +54,8 @@ void DeriveAEW::getW() {
 	// the selected rpInd vectors
 	// using H matrix to store dot products temporarily
 	for (UINT ind = 2; ind < N; ind++) {
-		dat.putHval(ind, 0, getDotProduct(X[ind].F, X[0].F));
-		dat.putHval(ind, 1, getDotProduct(X[ind].F, X[1].F));
+		dat.putHval(ind, 0, getDotProduct(X[ind].F, X[ind].fSize, X[0].F, X[0].fSize));
+		dat.putHval(ind, 1, getDotProduct(X[ind].F, X[ind].fSize, X[1].F, X[1].fSize));
 	}
 	sort(dVals.begin() + 2, dVals.end(), dValComp);
 	double minDistVal;
@@ -93,11 +88,13 @@ void DeriveAEW::getW() {
 		dVals[maxNormInd2].dist = INF;
 		std::swap(origInd[rpInd], origInd[maxNormInd]);
 		if(dInd < N && minDistVal > FLOAT_ZERO) {
-			for(dvi = dVals.begin() + dInd; dvi != dVals.end(); dvi++) {
-				if(minDistVal > dvi->dist)
+			std::vector<DistDat>::iterator t = dVals.begin() + dInd;
+			std::vector<DistDat>::iterator e = dVals.end();
+			for(; t != e; t++) {
+				if(minDistVal - t->dist > FLOAT_ZERO)
 					break;
 			}
-			sort(dVals.begin() + rpInd + 1, dvi, dValComp);
+			sort(dVals.begin() + rpInd + 1, t, dValComp);
 		} else {
 			sort(dVals.begin() + rpInd + 1, dVals.end(), dValComp);
 		}
@@ -105,7 +102,7 @@ void DeriveAEW::getW() {
 			updateCacheX(rpInd);
 			for (UINT ind = rpInd + 1; ind < N; ind++)
 				dat.putHval(origInd[ind], rpInd, \
-						    getDotProduct(X[rpInd].F, X[ind].F));
+						    getDotProduct(X[rpInd].F, X[rpInd].fSize, X[ind].F, X[ind].fSize));
 		}
 	}
 	dat.copyXW();
